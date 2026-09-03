@@ -9,8 +9,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
       MYSQL_DATABASE: ${MYSQL_DATABASE_NAME:-annual_health_checkup}
-    ports:
-      - "3307:3306"
+    # mysql container communicates internally with app via docker network on port 3306
     volumes:
       # Map host directory ./docker-data/mysql to container's MySQL data folder
       - ./docker-data/mysql:/var/lib/mysql
