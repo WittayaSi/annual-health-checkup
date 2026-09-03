@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. Database Service: MySQL 8.0
+  # ==========================================
+  mysql:
+    image: mysql:8.0
+    container_name: annual_health_checkup_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_NAME:-annual_health_checkup}
+    ports:
+      - "3306:3306"
+    volumes:
+      # Map host directory ./docker-data/mysql to container's MySQL data folder
+      - ./docker-data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ==========================================
+  # 2. Next.js Web Application Service
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: annual_health_checkup_app
+    restart: always
+    ports:
+      - "5555:5555"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - PORT=5555
+      - DATABASE_URL=mysql://root:123456@mysql:3306/annual_health_checkup
