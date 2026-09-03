@@ -153,7 +153,9 @@ export const store = {
         lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.toISOString() : undefined,
       }));
     } catch (err) {
-      console.warn('MySQL Users query error:', err);
+      if ((err as any)?.cause?.code !== 'ENOTFOUND' && (err as any)?.code !== 'ENOTFOUND') {
+        console.warn('MySQL Users query error:', err);
+      }
       return [];
     }
   },
