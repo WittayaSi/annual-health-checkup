@@ -40,9 +40,7 @@ export const organizations = mysqlTable('organizations', {
 // 0.1 Organization Entitlements Table: สิทธิ์ Package ตรวจฟรีตามองค์กร + เงื่อนไขอายุ
 export const organizationEntitlements = mysqlTable('organization_entitlements', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  organizationName: varchar('organization_name', { length: 255 })
-    .notNull()
-    .references(() => organizations.name, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  organizationName: varchar('organization_name', { length: 255 }).notNull(),
   packageId: varchar('package_id', { length: 36 })
     .notNull()
     .references(() => checkupPackages.id, { onDelete: 'cascade' }),
