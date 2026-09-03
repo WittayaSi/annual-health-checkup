@@ -42,13 +42,6 @@ import {
   PricingMode,
 } from './types';
 import { fetchHosOfficeStaff } from '@/db/hosoffice';
-import {
-  INITIAL_CAMPAIGN,
-  INITIAL_SLOTS,
-  INITIAL_PACKAGES,
-  INITIAL_ORGANIZATIONS,
-  generateInitialSlots,
-} from './mock-data';
 import { resolveItemPrice, detectGender, isInternalStaffUser } from './item-utils';
 
 let activeUserIdStore: string = 'usr-1';
@@ -409,26 +402,10 @@ export const store = {
 
   // --- Organizations Master (MySQL) ---
   async getOrganizations(): Promise<Organization[]> {
-    if (!db) return INITIAL_ORGANIZATIONS;
+    if (!db) return [];
     try {
       const rows = await db.select().from(schema.organizations).orderBy(asc(schema.organizations.name));
       const usersList = await this.getUsers();
-
-      if (rows.length === 0) {
-        // Seed initial organizations if table is empty
-        for (const org of INITIAL_ORGANIZATIONS) {
-          await db.insert(schema.organizations).values({
-            id: org.id,
-            name: org.name,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        }
-        return INITIAL_ORGANIZATIONS.map((d) => ({
-          ...d,
-          userCount: usersList.filter((u) => u.organization === d.name || u.department === d.name).length,
-        }));
-      }
 
       return rows.map((d) => ({
         id: d.id,
@@ -437,7 +414,7 @@ export const store = {
         createdAt: new Date(d.createdAt).toISOString(),
       }));
     } catch {
-      return INITIAL_ORGANIZATIONS;
+      return [];
     }
   },
 
@@ -989,7 +966,7 @@ export const store = {
         };
       });
     } catch {
-      return INITIAL_PACKAGES;
+      return [];
     }
   },
 
@@ -1572,7 +1549,7 @@ export const store = {
 
   // --- Daily Slots (MySQL) ---
   async getDailySlots(campaignId?: string, department?: string): Promise<DailySlot[]> {
-    if (!db) return INITIAL_SLOTS;
+    if (!db) return [];
 
     try {
       let rows;
