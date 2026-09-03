@@ -87,7 +87,7 @@ export const users = mysqlTable('users', {
 
 // 2. Packages Table: โปรแกรมตรวจสุขภาพประจำปี
 export const checkupPackages = mysqlTable('packages', {
-  id: varchar('id', { length: 36 }).primaryKey(),
+  id: varchar('id', { length: 100 }).primaryKey(),
   code: varchar('code', { length: 20 }).notNull().unique(), // เช่น PKG-A
   name: varchar('name', { length: 255 }).notNull(),
   targetGroup: varchar('target_group', { length: 255 }).notNull(),
@@ -99,7 +99,7 @@ export const checkupPackages = mysqlTable('packages', {
 
 // 2.1 Items Master Catalog Table: ตารางหลักเก็บรายการตรวจสุขภาพย่อยของโรงพยาบาล (Master Catalog)
 export const items = mysqlTable('items', {
-  id: varchar('id', { length: 36 }).primaryKey(),
+  id: varchar('id', { length: 100 }).primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   price: int('price').default(0).notNull(), // ราคามาตรฐาน (บาท)
   category: varchar('category', { length: 100 }), // เช่น ตรวจเลือด, ตรวจปัสสาวะ, เอกซเรย์
@@ -108,11 +108,11 @@ export const items = mysqlTable('items', {
 
 // 2.2 Package Items Junction Table: ตารางเชื่อมโยง Package กับ Items
 export const packageItems = mysqlTable('package_items', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  packageId: varchar('package_id', { length: 36 })
+  id: varchar('id', { length: 100 }).primaryKey(),
+  packageId: varchar('package_id', { length: 100 })
     .notNull()
     .references(() => checkupPackages.id, { onDelete: 'cascade' }),
-  itemId: varchar('item_id', { length: 36 })
+  itemId: varchar('item_id', { length: 100 })
     .notNull()
     .references(() => items.id, { onDelete: 'cascade' }),
   customPrice: int('custom_price'), // ราคาพิเศษเฉพาะ Package (ถ้ามี)

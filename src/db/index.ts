@@ -27,11 +27,11 @@ async function ensureDefaultAdmin(database: Database) {
     }
 
     const existingAdmin = await database.query.users.findFirst({
-      where: (u, { eq, or }) => or(eq(u.username, 'sys_admin'), eq(u.employeeCode, 'EMP-SYSADMIN-001'), eq(u.username, 'admin')),
+      where: (u, { eq }) => eq(u.username, 'sys_admin'),
     });
     if (!existingAdmin) {
       await database.insert(schema.users).values({
-        id: 'usr-admin',
+        id: 'usr-sysadmin-default',
         employeeCode: 'EMP-SYSADMIN-001',
         username: 'sys_admin',
         nationalId: '1234567890123',
@@ -71,7 +71,7 @@ export function getDb(): Database | null {
         queueLimit: 0,
       });
     }
-    globalForDb.db = drizzle({ client: globalForDb.pool, schema, mode: 'default' });
+    globalForDb.db = drizzle(globalForDb.pool, { schema, mode: 'default' });
     ensureDefaultAdmin(globalForDb.db);
     return globalForDb.db;
   } catch (error) {
@@ -80,11 +80,15 @@ export function getDb(): Database | null {
   }
 }
 
+export function isDbAvailable(): boolean {
+  return getDb() !== null;
+}
+
 export const db = new Proxy({} as Database, {
   get(_target, prop) {
     const instance = getDb();
     if (!instance) return undefined;
-    const value = (instance as any)[prop];
+    const value = Reflect.get(instance, prop, instance);
     return typeof value === 'function' ? value.bind(instance) : value;
   },
 });

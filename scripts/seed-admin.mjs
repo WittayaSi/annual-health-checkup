@@ -1,7 +1,7 @@
 import mysql from 'mysql2/promise';
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL || 'mysql://checkup_user:CheckupPass@2026@127.0.0.1:3308/annual_health_checkup';
+  const dbUrl = process.env.DATABASE_URL || 'mysql://root:123456@127.0.0.1:3306/annual_health_checkup';
   console.log('Connecting to MySQL database...');
   
   const conn = await mysql.createConnection(dbUrl);
@@ -17,10 +17,10 @@ async function main() {
   }
 
   // 2. Ensure default admin account exists with username: sys_admin
-  const [rows] = await conn.query('SELECT * FROM users WHERE username = "sys_admin" OR username = "admin" OR employee_code = "EMP-SYSADMIN-001"');
+  const [rows] = await conn.query('SELECT * FROM users WHERE username = "sys_admin"');
   
   if (Array.isArray(rows) && rows.length > 0) {
-    console.log('ℹ️ Admin account already exists in database.');
+    console.log('ℹ️ sys_admin account already exists in database.');
   } else {
     await conn.query(`
       INSERT INTO users (
@@ -28,7 +28,7 @@ async function main() {
         first_name, last_name, organization, department, position, 
         role, is_active, created_at, updated_at
       ) VALUES (
-        'usr-admin', 'EMP-SYSADMIN-001', 'sys_admin', '1234567890123', 'admin1234',
+        'usr-sysadmin-default', 'EMP-SYSADMIN-001', 'sys_admin', '1234567890123', 'admin1234',
         'ผู้ดูแลระบบ', '(System Admin)', 'โรงพยาบาลท่าสองยาง', 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ', 'ผู้ดูแลระบบสารสนเทศ',
         'ADMIN', 1, NOW(), NOW()
       )

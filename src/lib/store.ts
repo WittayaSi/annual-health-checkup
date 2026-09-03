@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { db } from '@/db';
+import { db, isDbAvailable } from '@/db';
 import * as schema from '@/db/schema';
 import { eq, sql, desc, asc, gte, lte } from 'drizzle-orm';
 
@@ -101,7 +101,7 @@ export const store = {
 
   // --- Users Table (MySQL) ---
   async getUsers(): Promise<User[]> {
-    if (!db) return [];
+    if (!isDbAvailable()) return [];
     try {
       let rows = await db.select().from(schema.users);
 
@@ -1056,7 +1056,7 @@ export const store = {
         }
 
         await db.insert(schema.packageItems).values({
-          id: `pkg-item-${pkgId}-${Math.random().toString(36).substring(2, 7)}`,
+          id: `pi-${Math.random().toString(36).substring(2, 9)}-${Date.now().toString(36)}`,
           packageId: pkgId,
           itemId: itemId,
           customPrice: item.price,
@@ -1140,7 +1140,7 @@ export const store = {
         }
 
         await db.insert(schema.packageItems).values({
-          id: `pkg-item-${packageId}-${Math.random().toString(36).substring(2, 7)}`,
+          id: `pi-${Math.random().toString(36).substring(2, 9)}-${Date.now().toString(36)}`,
           packageId: packageId,
           itemId: itemId,
           customPrice: item.price,
