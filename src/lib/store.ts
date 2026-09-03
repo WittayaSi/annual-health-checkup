@@ -156,7 +156,22 @@ export const store = {
       if ((err as any)?.cause?.code !== 'ENOTFOUND' && (err as any)?.code !== 'ENOTFOUND') {
         console.warn('MySQL Users query error:', err);
       }
-      return [];
+      return [
+        {
+          id: 'usr-admin',
+          employeeCode: 'EMP-SYSADMIN-001',
+          username: 'sys_admin',
+          nationalId: '1234567890123',
+          password: 'admin1234',
+          firstName: 'ผู้ดูแลระบบ',
+          lastName: '(System Admin)',
+          organization: 'โรงพยาบาลท่าสองยาง',
+          department: 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ',
+          position: 'ผู้ดูแลระบบสารสนเทศ',
+          role: 'ADMIN',
+          isActive: true,
+        },
+      ];
     }
   },
 
