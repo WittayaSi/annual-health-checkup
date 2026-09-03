@@ -33,6 +33,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy standalone build output & schema files for migrations
 COPY --from=builder /app/public ./public
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
