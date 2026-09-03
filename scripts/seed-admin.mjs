@@ -16,8 +16,8 @@ async function main() {
     console.log('✅ Master Organization created: โรงพยาบาลท่าสองยาง');
   }
 
-  // 2. Ensure default admin account exists
-  const [rows] = await conn.query('SELECT * FROM users WHERE username = "admin" OR employee_code = "EMP-ADMIN-001"');
+  // 2. Ensure default admin account exists with username: sys_admin
+  const [rows] = await conn.query('SELECT * FROM users WHERE username = "sys_admin" OR username = "admin" OR employee_code = "EMP-SYSADMIN-001"');
   
   if (Array.isArray(rows) && rows.length > 0) {
     console.log('ℹ️ Admin account already exists in database.');
@@ -28,13 +28,13 @@ async function main() {
         first_name, last_name, organization, department, position, 
         role, is_active, created_at, updated_at
       ) VALUES (
-        'usr-admin', 'EMP-ADMIN-001', 'admin', '1234567890123', 'admin1234',
+        'usr-admin', 'EMP-SYSADMIN-001', 'sys_admin', '1234567890123', 'admin1234',
         'ผู้ดูแลระบบ', '(System Admin)', 'โรงพยาบาลท่าสองยาง', 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ', 'ผู้ดูแลระบบสารสนเทศ',
         'ADMIN', 1, NOW(), NOW()
       )
     `);
     console.log('✅ Default Admin account created successfully!');
-    console.log('   Username: admin');
+    console.log('   Username: sys_admin');
     console.log('   Password: admin1234');
   }
 
