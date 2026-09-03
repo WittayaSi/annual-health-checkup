@@ -482,10 +482,11 @@ export function AdminCampaignConfigDialog({
                         className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer"
                       >
                         <option value="ทั้งหมด">ทั้งหมด (เปิดสำหรับบุคลากรทุกสังกัด)</option>
-                        <option value="โรงพยาบาลท่าสองยาง">โรงพยาบาลท่าสองยาง</option>
-                        <option value="สำนักงานสาธารณสุขอำเภอท่าสองยาง (สสอ.)">สำนักงานสาธารณสุขอำเภอท่าสองยาง (สสอ.)</option>
-                        <option value="สถานศึกษา / โรงเรียนในพื้นที่">สถานศึกษา / โรงเรียนในพื้นที่</option>
-                        <option value="ประชาชนทั่วไป / หน่วยงานภายนอก">ประชาชนทั่วไป / หน่วยงานภายนอก</option>
+                        {orgList.map((org) => (
+                          <option key={org.id} value={org.name}>
+                            {org.name}
+                          </option>
+                        ))}
                       </select>
                       <p className="text-[10px] text-slate-400 mt-1">
                         *เลือกองค์กรเป้าหมายเพื่อจำกัดให้เฉพาะบุคลากรในสังกัดนั้นเห็นโครงการและปฏิทินจองในหน้า /booking
