@@ -6,6 +6,17 @@ async function main() {
   
   const conn = await mysql.createConnection(dbUrl);
 
+  // 1. Ensure master organization 'โรงพยาบาลท่าสองยาง' exists first for foreign key integrity
+  const [orgRows] = await conn.query('SELECT * FROM organizations WHERE name = "โรงพยาบาลท่าสองยาง"');
+  if (!Array.isArray(orgRows) || orgRows.length === 0) {
+    await conn.query(`
+      INSERT INTO organizations (id, name, created_at, updated_at) 
+      VALUES ('org-main', 'โรงพยาบาลท่าสองยาง', NOW(), NOW())
+    `);
+    console.log('✅ Master Organization created: โรงพยาบาลท่าสองยาง');
+  }
+
+  // 2. Ensure default admin account exists
   const [rows] = await conn.query('SELECT * FROM users WHERE username = "admin" OR employee_code = "EMP-ADMIN-001"');
   
   if (Array.isArray(rows) && rows.length > 0) {

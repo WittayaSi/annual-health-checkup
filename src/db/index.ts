@@ -14,6 +14,18 @@ async function ensureDefaultAdmin(database: Database) {
   if (isEnsuredAdmin) return;
   isEnsuredAdmin = true;
   try {
+    const existingOrg = await database.query.organizations.findFirst({
+      where: (o, { eq }) => eq(o.name, 'โรงพยาบาลท่าสองยาง'),
+    });
+    if (!existingOrg) {
+      await database.insert(schema.organizations).values({
+        id: 'org-main',
+        name: 'โรงพยาบาลท่าสองยาง',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
     const existingAdmin = await database.query.users.findFirst({
       where: (u, { eq, or }) => or(eq(u.username, 'admin'), eq(u.employeeCode, 'EMP-ADMIN-001')),
     });
