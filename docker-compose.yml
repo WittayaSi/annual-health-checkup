@@ -7,14 +7,18 @@ services:
     container_name: annual_health_checkup_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Pass@11241}
+      MYSQL_USER: ${MYSQL_USER:-checkup_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-CheckupPass@2026}
       MYSQL_DATABASE: ${MYSQL_DATABASE_NAME:-annual_health_checkup}
-    # mysql container communicates internally with app via docker network on port 3306
+    # Map host port 3308 for external DB client access (e.g. DBeaver, Navicat, Workbench)
+    ports:
+      - "3308:3306"
     volumes:
       # Map host directory ./docker-data/mysql to container's MySQL data folder
       - ./docker-data/mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-Pass@11241}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -38,4 +42,4 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5555
-      - DATABASE_URL=mysql://root:123456@mysql:3306/annual_health_checkup
+      - DATABASE_URL=${DATABASE_URL:-mysql://checkup_user:CheckupPass@2026@mysql:3306/annual_health_checkup}
