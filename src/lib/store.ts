@@ -156,22 +156,7 @@ export const store = {
       if ((err as any)?.cause?.code !== 'ENOTFOUND' && (err as any)?.code !== 'ENOTFOUND') {
         console.warn('MySQL Users query error:', err);
       }
-      return [
-        {
-          id: 'usr-admin',
-          employeeCode: 'EMP-SYSADMIN-001',
-          username: 'sys_admin',
-          nationalId: '1234567890123',
-          password: 'admin1234',
-          firstName: 'ผู้ดูแลระบบ',
-          lastName: '(System Admin)',
-          organization: 'โรงพยาบาลท่าสองยาง',
-          department: 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ',
-          position: 'ผู้ดูแลระบบสารสนเทศ',
-          role: 'ADMIN',
-          isActive: true,
-        },
-      ];
+      return [];
     }
   },
 
@@ -1953,19 +1938,19 @@ export const store = {
           ? pricing.items
           : selectedItems && selectedItems.length > 0
             ? selectedItems.map((si) => ({
-                itemId: si.id,
-                itemName: si.name,
-                price: si.price,
-                chargedPrice: si.price,
-                isCovered: false,
-              }))
+              itemId: si.id,
+              itemName: si.name,
+              price: si.price,
+              chargedPrice: si.price,
+              isCovered: false,
+            }))
             : (selectedPkg.items || []).map((i) => ({
-                itemId: i.id,
-                itemName: i.name,
-                price: i.price,
-                chargedPrice: i.price,
-                isCovered: false,
-              }));
+              itemId: i.id,
+              itemName: i.name,
+              price: i.price,
+              chargedPrice: i.price,
+              isCovered: false,
+            }));
 
         // Fetch master items to guarantee target item_id is resolved
         const masterItemsList = await tx.select().from(schema.items);
@@ -2114,7 +2099,7 @@ export const store = {
     if (!db) return [];
     try {
       const rows = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.timestamp));
-      
+
       if (rows.length === 0) {
         // Seed initial audit log entry if empty
         await this.logAudit('system', 'HIS_SYNC', 'เริ่มต้นใช้งานระบบจองตรวจสุขภาพและซิงก์ข้อมูล');
