@@ -9,6 +9,38 @@ const globalForDb = globalThis as unknown as {
   db: Database | undefined;
 };
 
+let isEnsuredAdmin = false;
+async function ensureDefaultAdmin(database: Database) {
+  if (isEnsuredAdmin) return;
+  isEnsuredAdmin = true;
+  try {
+    const existingAdmin = await database.query.users.findFirst({
+      where: (u, { eq, or }) => or(eq(u.username, 'admin'), eq(u.employeeCode, 'EMP-ADMIN-001')),
+    });
+    if (!existingAdmin) {
+      await database.insert(schema.users).values({
+        id: 'usr-admin',
+        employeeCode: 'EMP-ADMIN-001',
+        username: 'admin',
+        nationalId: '1234567890123',
+        password: 'admin1234',
+        firstName: 'ผู้ดูแลระบบ',
+        lastName: '(System Admin)',
+        organization: 'โรงพยาบาลท่าสองยาง',
+        department: 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ',
+        position: 'ผู้ดูแลระบบสารสนเทศ',
+        role: 'ADMIN',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log('✅ Auto-seeded default admin account (username: admin / password: admin1234)');
+    }
+  } catch {
+    isEnsuredAdmin = false;
+  }
+}
+
 export function getDb(): Database | null {
   if (globalForDb.db) return globalForDb.db;
 
@@ -28,6 +60,7 @@ export function getDb(): Database | null {
       });
     }
     globalForDb.db = drizzle({ client: globalForDb.pool, schema, mode: 'default' });
+    ensureDefaultAdmin(globalForDb.db);
     return globalForDb.db;
   } catch (error) {
     console.warn('MySQL connection warning:', error);
