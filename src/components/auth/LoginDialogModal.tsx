@@ -13,6 +13,8 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   loginWithHospitalCredentialsAction,
@@ -36,6 +38,7 @@ export function LoginDialogModal({
   // Hospital credentials login state
   const [username, setUsername] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [successUser, setSuccessUser] = useState<User | null>(null);
@@ -180,12 +183,24 @@ export function LoginDialogModal({
                   <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       placeholder="กรอกรหัสผ่านระบบ HosOffice"
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-slate-800"
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-slate-800"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer p-0.5"
+                      title={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
