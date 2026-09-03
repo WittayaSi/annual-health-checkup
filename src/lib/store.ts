@@ -103,7 +103,28 @@ export const store = {
   async getUsers(): Promise<User[]> {
     if (!db) return [];
     try {
-      const rows = await db.select().from(schema.users);
+      let rows = await db.select().from(schema.users);
+
+      // Auto-Seed Default Admin User if Database is completely empty on fresh install
+      if (rows.length === 0) {
+        await db.insert(schema.users).values({
+          id: 'usr-admin',
+          employeeCode: 'EMP-ADMIN-001',
+          username: 'admin',
+          nationalId: '1234567890123',
+          password: 'admin1234',
+          firstName: 'ผู้ดูแลระบบ',
+          lastName: '(System Admin)',
+          organization: 'โรงพยาบาลท่าสองยาง',
+          department: 'ศูนย์คอมพิวเตอร์ / เทคโนโลยีสารสนเทศ',
+          position: 'ผู้ดูแลระบบสารสนเทศ',
+          role: 'ADMIN',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        rows = await db.select().from(schema.users);
+      }
       return rows.map((r) => ({
         id: r.id,
         employeeCode: r.employeeCode,
@@ -547,20 +568,61 @@ export const store = {
 
   // --- Campaign (MySQL) ---
   async getCampaign(userOrg?: string, userDept?: string): Promise<Campaign> {
-    if (!db) return INITIAL_CAMPAIGN;
+    if (!db) {
+      return {
+        id: '',
+        name: 'ยังไม่มีโครงการตรวจสุขภาพในระบบ',
+        organization: 'ทั้งหมด',
+        department: 'ทั้งหมด',
+        targetDepartment: 'ทั้งหมด',
+        year: new Date().getFullYear(),
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        defaultQuota: 0,
+        openDaysOfWeek: '1,2,3,4,5',
+        advanceBookingDays: 2,
+        isActive: false,
+      };
+    }
     try {
       const all = await this.getCampaigns(userOrg, userDept);
       const active = all.find((c) => c.isActive);
       if (active) return active;
       if (all.length > 0) return all[0];
-      return INITIAL_CAMPAIGN;
+      return {
+        id: '',
+        name: 'ยังไม่มีโครงการตรวจสุขภาพในระบบ',
+        organization: 'ทั้งหมด',
+        department: 'ทั้งหมด',
+        targetDepartment: 'ทั้งหมด',
+        year: new Date().getFullYear(),
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        defaultQuota: 0,
+        openDaysOfWeek: '1,2,3,4,5',
+        advanceBookingDays: 2,
+        isActive: false,
+      };
     } catch {
-      return INITIAL_CAMPAIGN;
+      return {
+        id: '',
+        name: 'ยังไม่มีโครงการตรวจสุขภาพในระบบ',
+        organization: 'ทั้งหมด',
+        department: 'ทั้งหมด',
+        targetDepartment: 'ทั้งหมด',
+        year: new Date().getFullYear(),
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        defaultQuota: 0,
+        openDaysOfWeek: '1,2,3,4,5',
+        advanceBookingDays: 2,
+        isActive: false,
+      };
     }
   },
 
   async getCampaigns(userOrg?: string, userDept?: string): Promise<Campaign[]> {
-    if (!db) return [INITIAL_CAMPAIGN];
+    if (!db) return [];
     try {
       const rows = await db.select().from(schema.campaigns).orderBy(desc(schema.campaigns.year));
       const mapped = rows.map((c) => {
@@ -600,7 +662,7 @@ export const store = {
 
       return mapped;
     } catch {
-      return [INITIAL_CAMPAIGN];
+      return [];
     }
   },
 
@@ -852,53 +914,11 @@ export const store = {
 
   // --- Checkup Packages (MySQL Master Catalog items & Relational Junction package_items) ---
   async getPackages(): Promise<CheckupPackage[]> {
-    if (!db) return INITIAL_PACKAGES;
+    if (!db) return [];
     try {
       const rows = await db.select().from(schema.checkupPackages);
       if (rows.length === 0) {
-        for (const p of INITIAL_PACKAGES) {
-          const itemsToSave = p.items && p.items.length > 0
-            ? p.items
-            : p.labTests.map((t) => ({ name: t, price: 0 }));
-
-          await db.insert(schema.checkupPackages).values({
-            id: p.id,
-            code: p.code,
-            name: p.name,
-            targetGroup: p.targetGroup,
-            description: p.description,
-            labTestsJson: JSON.stringify(itemsToSave),
-          });
-
-          // Insert into Master items table & Junction package_items
-          for (const item of itemsToSave) {
-            let itemId = `item-${Math.random().toString(36).substring(2, 9)}`;
-            const existingLab = await db
-              .select()
-              .from(schema.items)
-              .where(eq(schema.items.name, item.name));
-
-            if (existingLab.length > 0) {
-              itemId = existingLab[0].id;
-            } else {
-              await db.insert(schema.items).values({
-                id: itemId,
-                name: item.name,
-                price: item.price,
-                createdAt: new Date(),
-              });
-            }
-
-            await db.insert(schema.packageItems).values({
-              id: `pkg-item-${p.id}-${Math.random().toString(36).substring(2, 7)}`,
-              packageId: p.id,
-              itemId: itemId,
-              customPrice: item.price,
-              createdAt: new Date(),
-            });
-          }
-        }
-        return INITIAL_PACKAGES;
+        return [];
       }
 
       // Fetch Junction package_items with Master items from MySQL
