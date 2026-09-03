@@ -109,8 +109,8 @@ export const store = {
       if (rows.length === 0) {
         await db.insert(schema.users).values({
           id: 'usr-admin',
-          employeeCode: 'EMP-ADMIN-001',
-          username: 'admin',
+          employeeCode: 'EMP-SYSADMIN-001',
+          username: 'sys_admin',
           nationalId: '1234567890123',
           password: 'admin1234',
           firstName: 'ผู้ดูแลระบบ',
@@ -182,6 +182,7 @@ export const store = {
           // Auto assign ADMIN role to Digital Health Group & Occupational Medicine
           const isAutoAdmin =
             staff.department?.includes('สุขภาพดิจิทัล') ||
+            staff.username?.toLowerCase() === 'sys_admin' ||
             staff.username?.toLowerCase() === 'admin';
 
           const assignedRole = isAutoAdmin ? 'ADMIN' : 'STAFF';

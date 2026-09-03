@@ -27,13 +27,13 @@ async function ensureDefaultAdmin(database: Database) {
     }
 
     const existingAdmin = await database.query.users.findFirst({
-      where: (u, { eq, or }) => or(eq(u.username, 'admin'), eq(u.employeeCode, 'EMP-ADMIN-001')),
+      where: (u, { eq, or }) => or(eq(u.username, 'sys_admin'), eq(u.employeeCode, 'EMP-SYSADMIN-001'), eq(u.username, 'admin')),
     });
     if (!existingAdmin) {
       await database.insert(schema.users).values({
         id: 'usr-admin',
-        employeeCode: 'EMP-ADMIN-001',
-        username: 'admin',
+        employeeCode: 'EMP-SYSADMIN-001',
+        username: 'sys_admin',
         nationalId: '1234567890123',
         password: 'admin1234',
         firstName: 'ผู้ดูแลระบบ',
