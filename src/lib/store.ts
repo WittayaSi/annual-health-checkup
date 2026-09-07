@@ -2112,24 +2112,52 @@ export const store = {
         // Seed initial audit log entry if empty
         await this.logAudit('system', 'HIS_SYNC', 'เริ่มต้นใช้งานระบบจองตรวจสุขภาพและซิงก์ข้อมูล');
         const newRows = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.timestamp));
-        return newRows.map((r) => ({
+        return newRows.map((r) => {
+          let tsStr = new Date().toISOString();
+          try {
+            if (r.timestamp instanceof Date) {
+              tsStr = isNaN(r.timestamp.getTime()) ? new Date().toISOString() : r.timestamp.toISOString();
+            } else if (r.timestamp) {
+              const d = new Date(r.timestamp);
+              tsStr = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+            }
+          } catch {
+            tsStr = new Date().toISOString();
+          }
+
+          return {
+            id: r.id,
+            timestamp: tsStr,
+            actorId: r.actorId,
+            actorName: r.actorName || 'ผู้ดูแลระบบ (System)',
+            action: r.action as any,
+            details: r.details,
+          };
+        });
+      }
+
+      return rows.map((r) => {
+        let tsStr = new Date().toISOString();
+        try {
+          if (r.timestamp instanceof Date) {
+            tsStr = isNaN(r.timestamp.getTime()) ? new Date().toISOString() : r.timestamp.toISOString();
+          } else if (r.timestamp) {
+            const d = new Date(r.timestamp);
+            tsStr = isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+          }
+        } catch {
+          tsStr = new Date().toISOString();
+        }
+
+        return {
           id: r.id,
-          timestamp: r.timestamp ? (r.timestamp instanceof Date ? r.timestamp.toISOString() : new Date(r.timestamp).toISOString()) : new Date().toISOString(),
+          timestamp: tsStr,
           actorId: r.actorId,
           actorName: r.actorName || 'ผู้ดูแลระบบ (System)',
           action: r.action as any,
           details: r.details,
-        }));
-      }
-
-      return rows.map((r) => ({
-        id: r.id,
-        timestamp: r.timestamp ? (r.timestamp instanceof Date ? r.timestamp.toISOString() : new Date(r.timestamp).toISOString()) : new Date().toISOString(),
-        actorId: r.actorId,
-        actorName: r.actorName || 'ผู้ดูแลระบบ (System)',
-        action: r.action as any,
-        details: r.details,
-      }));
+        };
+      });
     } catch (err) {
       console.error('MySQL Audit Logs query error:', err);
       return [];
