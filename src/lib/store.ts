@@ -1857,13 +1857,33 @@ export const store = {
     }
 
     const bookingsList = await this.getBookings();
+    const deptName = (user.department || user.organization || '').trim();
+
+    // Count total active staff belonging to this department (with trimmed string matching)
+    const totalDeptStaff = deptName
+      ? usersList.filter(
+          (u) =>
+            u.isActive !== false &&
+            ((u.department && u.department.trim() === deptName) || (u.organization && u.organization.trim() === deptName))
+        ).length
+      : 0;
+
+    // Calculate dynamic quota (80% of total staff in department, minimum 1 person)
+    const maxDeptQuota = totalDeptStaff > 0 ? Math.max(1, Math.floor(totalDeptStaff * 0.8)) : 6;
+
     const sameDeptBookings = bookingsList.filter(
-      (b) => b.dailySlotId === dailySlotId && b.status === 'CONFIRMED' && b.user?.department === user.department
+      (b) =>
+        b.dailySlotId === dailySlotId &&
+        b.status === 'CONFIRMED' &&
+        deptName &&
+        ((b.user?.department && b.user.department.trim() === deptName) ||
+          (b.user?.organization && b.user.organization.trim() === deptName))
     ).length;
 
-    if (sameDeptBookings >= 6) {
+    if (!isAdminOverride && sameDeptBookings >= maxDeptQuota) {
+      const percentStr = totalDeptStaff > 0 ? ` (${maxDeptQuota} คน จากทั้งหมด ${totalDeptStaff} คน - ไม่เกิน 80%)` : '';
       throw new Error(
-        `แผนก ${user.department} มีผู้จองในวันที่ ${slot.date} ครบโควต้าสูงสุดแล้ว (6 คน/วัน)`
+        `แผนก ${deptName} มีผู้จองในวันที่ ${slot.date} ครบโควต้าสูงสุดแล้ว${percentStr}`
       );
     }
 
