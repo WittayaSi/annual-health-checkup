@@ -77,7 +77,7 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
     { id: 5, title: '5. เจาะเลือดกับเจ้าหน้าที่ห้อง Lab', icon: TestTube2, desc: 'เจาะเลือดและส่งสิ่งส่งตรวจตามรายการตรวจของท่าน', img: '/steps/5.png' },
     { id: 6, title: '6. ยื่น X-ray', icon: FileCheck, desc: 'ถ่ายภาพเอกซเรย์ปอดและหัวใจดิจิทัล (Chest PA Upright)', img: '/steps/6.png' },
     { id: 7, title: '7. ยื่นตรวจฟัน', icon: Stethoscope, desc: 'ตรวจสุขภาพช่องปาก ทันตกรรม และรับคำแนะนำการดูแลฟัน', img: '/steps/7.png' },
-    { id: 8, title: '8. จุดคืนเอกสาร', icon: CheckCircle2, desc: 'ตรวจสอบและคืนเอกสารสรุปการตรวจสุขภาพทั้งหมด', img: '/steps/8.png' },
+    { id: 8, title: '8. จุดให้คำแนะนำหลังตรวจ', icon: CheckCircle2, desc: 'คืนเอกสารเพื่อตรวจสอบความครบถ้วน พร้อมรับคำแนะนำการดูแลตัวเอง และวิธีดูผลตรวจหรือรับใบนัดหมายผ่านแอปหมอพร้อม', img: '/steps/8.png' },
     { id: 9, title: '9. ตอบแบบประเมินความพึงพอใจ', icon: QrCode, desc: 'สแกน QR Code เพื่อตอบแบบประเมินความพึงพอใจการรับบริการ', img: '/steps/9.png' },
   ];
 
@@ -122,8 +122,8 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
                     {isNavigating
                       ? 'กำลังนำคุณเข้าสู่ระบบ...'
                       : activeUser
-                      ? `เข้าใช้งานระบบจองคิว (คุณ${activeUser.firstName})`
-                      : 'เข้าสู่ระบบจองคิวตรวจสุขภาพ'}
+                        ? `เข้าใช้งานระบบจองคิว (คุณ${activeUser.firstName})`
+                        : 'เข้าสู่ระบบจองคิวตรวจสุขภาพ'}
                   </span>
                   {!isNavigating && <ArrowRight className="h-5 w-5" />}
                 </button>
@@ -167,7 +167,7 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
                   </div>
                   <div>
                     <p className="font-semibold text-white">ช่วงวันที่เปิดตรวจ:</p>
-                    <p className="text-emerald-200 font-bold">จันทร์ - ศุกร์</p>
+                    <p className="text-emerald-200 font-bold">จันทร์ พุธ ศุกร์</p>
                   </div>
                 </div>
 
@@ -263,10 +263,10 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
               </div>
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                  3. เตรียม ปากกา มือถือ บัตรประชาชน
+                  3. เตรีมปากกา บัตรประชาชน มือถือ (อัพเดทแอปหมอพร้อม)
                 </h3>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  นำปากกา มือถือ และบัตรประชาชนติดตัวมาเพื่อความสะดวกในการเข้ารับบริการ
+                  เพื่อปิดสิทธิมารับบริการ และรับผลตรวจสุขภาพแบบดิจิตัล
                 </p>
               </div>
             </div>
@@ -281,10 +281,10 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
               </div>
               <div className="space-y-1.5">
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                  4. สวมเสื้อที่ถอดง่าย ไม่มีโลหะ
+                  4. การเตรียมตัวและแต่งกาย
                 </h3>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  งดสวมสร้อยคอ สุภาพสตรีไม่ควรสวมชุดชั้นในที่มีโครง เพื่อความสะดวกในการทำเอกซเรย์
+                  งดสวมใส่เครื่องประดับและเสื้อผ้าที่มีส่วนประกอบของโลหะ และสวมเสื้อผ้าที่เหมาะสม
                 </p>
               </div>
             </div>
@@ -531,7 +531,7 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
             <li className="flex items-start gap-2">
               <span className="text-amber-600 dark:text-amber-400 font-bold">•</span>
               <span>
-                <strong>กรณีพบรายชื่อหรือเพิ่มรายชื่อ:</strong> กรุณาแจ้งที่งานส่งเสริมฯ <strong className="text-amber-800 dark:text-amber-300 underline underline-offset-2">กด 155</strong> ทันที หรือต้องการเปลี่ยนวัน <strong className="text-amber-800 dark:text-amber-300 underline underline-offset-2">กด 101</strong> ห้องบัตร ล่วงหน้าอย่างน้อย 2 วัน
+                <strong>กรณีติดธุระไม่สามารถมาตรวจตามวันที่จองได้:</strong> ให้ท่านกดยกเลิก และลงจองวันตรวจสุขภาพล่วงหน้าน้อย 2 วัน
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -543,7 +543,7 @@ export function CheckupGuideGraphic({ activeUser, campaign, advanceBookingDays }
             <li className="flex items-start gap-2">
               <span className="text-amber-600 dark:text-amber-400 font-bold">•</span>
               <span>
-                <strong>ทดสอบสมรรถภาพร่างกาย:</strong> ที่ฟิตเนส (ศูนย์สุขภาพ) ชั้น 3 ตึกจ่ายกลาง ได้ตั้งแต่วันจันทร์ - ศุกร์ ที่ <strong>เวลา 13.00 - 16.00 น.</strong> <i>(สามารถทดสอบสมรรถภาพร่างกายก่อนตรวจสุขภาพประจำปีได้)</i>
+                <strong>ทดสอบสมรรถภาพร่างกาย:</strong> วันจันทร์ พุธ ศุกร์ (ตรงกับวันตรวจสุขภาพ สวมชุดกีฬา) <strong>เวลา 14.00 - 16.00 น.</strong> ณ ห้องโถงทางเชื่อมตึกผู้ป่วยในชั้น 2 กับตึก 5 ชั้น
               </span>
             </li>
           </ul>
