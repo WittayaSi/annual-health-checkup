@@ -1899,6 +1899,8 @@ export const store = {
             .where(eq(schema.timeSlots.id, resolvedTimeSlotId));
         }
 
+        const now = new Date();
+
         // Insert booking record into MySQL database (with pricing fields)
         await tx.insert(schema.bookings).values({
           id: bookingId,
@@ -1914,6 +1916,8 @@ export const store = {
           totalPrice: pricing.totalPrice,
           flatRatePrice: pricing.flatRatePrice,
           notes: notes || `[รายการตรวจที่เลือก: ${pricing.items.map((i) => i.itemName).join(', ') || 'ทั้งหมด'}] [ราคารวม: ${pricing.totalPrice} บาท]`,
+          createdAt: now,
+          updatedAt: now,
         });
 
         // Determine items to insert for this booking

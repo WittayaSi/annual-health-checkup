@@ -33,8 +33,8 @@ export const pricingModeEnum = mysqlEnum('pricing_mode', [
 export const organizations = mysqlTable('organizations', {
   id: varchar('id', { length: 36 }).primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  createdAt: datetime('created_at').default(new Date()).notNull(),
-  updatedAt: datetime('updated_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
 });
 
 // 0.1 Organization Entitlements Table: สิทธิ์ Package ตรวจฟรีตามองค์กร + เงื่อนไขอายุ
@@ -81,8 +81,8 @@ export const users = mysqlTable('users', {
   isActive: boolean('is_active').default(true).notNull(),
 
   lastSyncedAt: datetime('last_synced_at'),
-  createdAt: datetime('created_at').default(new Date()).notNull(),
-  updatedAt: datetime('updated_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
 });
 
 // 2. Packages Table: โปรแกรมตรวจสุขภาพประจำปี
@@ -135,8 +135,8 @@ export const campaigns = mysqlTable('campaigns', {
   eligibleStartworkCutoffDate: date('eligible_startwork_cutoff_date', { mode: 'string' }), // วันที่เริ่มบรรจุ/เข้าทำงานวันสุดท้ายที่มีสิทธิ์ (เช่น "2026-04-01")
   isActive: boolean('is_active').default(false).notNull(),
   announcement: text('announcement'),
-  createdAt: datetime('created_at').default(new Date()).notNull(),
-  updatedAt: datetime('updated_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
 });
 
 // 4. Daily Slots Table: สล็อตประจำวัน (FOREIGN KEY -> campaigns.id)
@@ -216,8 +216,8 @@ export const bookings = mysqlTable(
     notes: text('notes'),
     reminderSent: boolean('reminder_sent').default(false).notNull(), // สถานะส่งแจ้งเตือนล่วงหน้า 1 วัน
     reminderLastAttemptAt: datetime('reminder_last_attempt_at'), // เวลาพยายามส่งครั้งล่าสุด (เพื่อพยายามส่งซ้ำทุก 1 ชม.)
-    createdAt: datetime('created_at').default(new Date()).notNull(),
-    updatedAt: datetime('updated_at').default(new Date()).notNull(),
+    createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
   },
   (table) => ({
     userCampaignIdx: index('user_campaign_idx').on(table.userId, table.campaignId),
@@ -236,13 +236,13 @@ export const bookingItems = mysqlTable('booking_items', {
   price: int('price').default(0).notNull(),                             // ราคามาตรฐานของรายการ
   chargedPrice: int('charged_price').default(0).notNull(),              // ราคาที่คิดจริง (0 = ฟรีตามสิทธิ์)
   isCoveredByEntitlement: boolean('is_covered_by_entitlement').default(false).notNull(), // รายการนี้อยู่ในสิทธิ์ฟรีหรือไม่
-  createdAt: datetime('created_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
 });
 
 // 9. Audit Logs Table: บันทึกประวัติการทำรายการเพื่อการตรวจสอบ
 export const auditLogs = mysqlTable('audit_logs', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  timestamp: datetime('timestamp').default(new Date()).notNull(),
+  timestamp: datetime('timestamp').$defaultFn(() => new Date()).notNull(),
   actorId: varchar('actor_id', { length: 36 }).notNull(),
   actorName: varchar('actor_name', { length: 100 }).notNull(),
   action: varchar('action', { length: 50 }).notNull(),
