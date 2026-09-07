@@ -21,6 +21,7 @@ import {
 } from '@/lib/types';
 import { bookSlotAction, rescheduleBookingAction } from '@/app/actions';
 import { HealthPackageSelector } from '@/components/staff/HealthPackageSelector';
+import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
 
 interface AdminBookModalProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ export function AdminBookModal({
   const pkgAId = packages.find((p) => p.code === 'PKG-A' || p.id === 'pkg-a')?.id || packages[0]?.id || 'pkg-a';
 
   const userAge = user?.dob
-    ? new Date().getFullYear() - new Date(user.dob).getFullYear()
+    ? calculateAge(user.dob)
     : 30;
 
   const [selectedSlotId, setSelectedSlotId] = useState<string>(
@@ -201,7 +202,7 @@ export function AdminBookModal({
                 {user.dob && (
                   <>
                     <span>•</span>
-                    <span>อายุ: {new Date().getFullYear() - new Date(user.dob).getFullYear()} ปี</span>
+                    <span>อายุ: {formatDetailedAge(user.dob)}</span>
                   </>
                 )}
               </div>
@@ -246,6 +247,7 @@ export function AdminBookModal({
               user={user}
               selectedPackageId={selectedPackageId}
               initialSelectedItems={initialItems}
+              targetDate={dailySlots.find((s) => s.id === selectedSlotId)?.date || existingBooking?.dailySlot?.date}
               onSelectPackage={handleSelectPackage}
             />
           </div>

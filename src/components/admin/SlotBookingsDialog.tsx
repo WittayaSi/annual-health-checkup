@@ -62,12 +62,14 @@ export function SlotBookingsDialog({
 
   if (!slot || !mounted) return null;
 
-  // Filter bookings for this slot date
-  const dayBookings = bookings.filter((b) => {
-    if (b.dailySlotId === slot.id) return true;
-    if (b.dailySlot?.date === slot.date) return true;
-    return false;
-  });
+  // Filter bookings for this slot date and sort chronologically by createdAt (created_at)
+  const dayBookings = bookings
+    .filter((b) => {
+      if (b.dailySlotId === slot.id) return true;
+      if (b.dailySlot?.date === slot.date) return true;
+      return false;
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const filteredBookings = dayBookings.filter((b) => {
     if (statusFilter !== 'ALL' && b.status !== statusFilter) return false;

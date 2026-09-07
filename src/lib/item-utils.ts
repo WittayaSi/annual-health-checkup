@@ -38,3 +38,50 @@ export function isInternalStaffUser(user?: { organization?: string; department?:
 
   return isOrgInternal || isDeptInternal;
 }
+
+/** Calculate exact completed age (อายุบริบูรณ์) from DOB string (YYYY-MM-DD) as of target date (defaults to today) */
+export function calculateAge(dob?: string | null, targetDate: Date = new Date()): number {
+  if (!dob) return 0;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return 0;
+
+  const target = targetDate || new Date();
+  let age = target.getFullYear() - birth.getFullYear();
+  const monthDiff = target.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && target.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+/** Format age into detailed Years, Months, Days string (e.g. "34 ปี 9 เดือน 5 วัน") as of target date (defaults to today) */
+export function formatDetailedAge(dob?: string | null, targetDate: Date = new Date()): string {
+  if (!dob) return '-';
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return '-';
+
+  const target = targetDate || new Date();
+  let years = target.getFullYear() - birth.getFullYear();
+  let months = target.getMonth() - birth.getMonth();
+  let days = target.getDate() - birth.getDate();
+
+  if (days < 0) {
+    const prevMonthLastDay = new Date(target.getFullYear(), target.getMonth(), 0).getDate();
+    days += prevMonthLastDay;
+    months--;
+  }
+
+  if (months < 0) {
+    months += 12;
+    years--;
+  }
+
+  if (months === 0 && days === 0) {
+    return `${years} ปี`;
+  }
+
+  return `${years} ปี ${months} เดือน ${days} วัน`;
+}
+
+

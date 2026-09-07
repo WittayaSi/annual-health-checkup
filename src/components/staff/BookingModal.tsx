@@ -12,6 +12,7 @@ import {
 import { DailySlot, User, CheckupPackage, TestItem } from '@/lib/types';
 import { bookSlotAction } from '@/app/actions';
 import { HealthPackageSelector } from './HealthPackageSelector';
+import { calculateAge } from '@/lib/item-utils';
 
 interface BookingModalProps {
   slot: DailySlot;
@@ -29,7 +30,7 @@ export function BookingModal({
   onSuccess,
 }: BookingModalProps) {
   const userAge = activeUser.dob
-    ? new Date().getFullYear() - new Date(activeUser.dob).getFullYear()
+    ? calculateAge(activeUser.dob, new Date(slot.date))
     : 30;
   const isSeniorEligible = userAge >= 35;
 
@@ -159,6 +160,7 @@ export function BookingModal({
               packages={packages}
               user={activeUser}
               selectedPackageId={selectedPackageId}
+              targetDate={slot.date}
               onSelectPackage={handleSelectPackage}
             />
           </div>

@@ -3,7 +3,6 @@
 import { store } from '@/lib/store';
 import { revalidatePath } from 'next/cache';
 import { formatErrorMessage } from './common';
-import { sendLineFlexNotification } from '@/lib/line-api';
 import {
   sendTelegramBookingNotificationCard,
   sendTelegramCancellationNotificationCard,
@@ -18,6 +17,8 @@ export async function getBookingsAction() {
   return await store.getBookings();
 }
 
+import { getActiveUserAction } from './user.actions';
+
 export async function getUserBookingAction(userId: string) {
   return await store.getUserBooking(userId);
 }
@@ -28,31 +29,13 @@ export async function bookSlotAction(
   timeSlotId?: string,
   packageId?: string,
   notes?: string,
-  selectedItems?: { id?: string; name: string; price: number }[]
+  selectedItems?: { id?: string; name: string; price: number }[],
+  isAdminOverride?: boolean
 ) {
   try {
-    const booking = await store.bookSlot(userId, dailySlotId, timeSlotId, packageId, notes, selectedItems);
-    
-    try {
-      const user = await store.getUserById(userId);
-      if (user && user.isLineLinked && user.lineUserId) {
-        const slots = await store.getDailySlots();
-        const slot = slots.find((s) => s.id === dailySlotId);
-        const packages = await store.getPackages();
-        const pkg = packages.find((p) => p.id === packageId);
-        
-        await sendLineFlexNotification(user.lineUserId, {
-          queueNumber: booking.queueNumber || 'A-000',
-          userName: `${user.firstName} ${user.lastName}`,
-          organizationName: user.organization || user.department || 'โรงพยาบาลท่าสองยาง',
-          dateStr: slot?.date || new Date().toISOString().split('T')[0],
-          timeSlotStr: '08:00 - 12:00 น.',
-          packageName: pkg?.name || 'แพ็กเกจตรวจสุขภาพประจำปี',
-        });
-      }
-    } catch (lineErr) {
-      console.error('Failed to dispatch LINE notification:', lineErr);
-    }
+    const activeUser = await getActiveUserAction();
+    const isAdmin = activeUser?.role === 'ADMIN' || activeUser?.role === 'SUPER_STAFF' || isAdminOverride === true;
+    const booking = await store.bookSlot(userId, dailySlotId, timeSlotId, packageId, notes, selectedItems, isAdmin);
 
     try {
       const user = await store.getUserById(userId);

@@ -1351,7 +1351,8 @@ export const store = {
   async calculateBookingPrice(
     user: User,
     selectedPackageId: string,
-    customSelectedItems?: { id?: string; name: string; price: number }[]
+    customSelectedItems?: { id?: string; name: string; price: number }[],
+    bookingDate?: Date | string
   ): Promise<{
     pricingMode: PricingMode;
     entitlementPackageId: string | null;
@@ -1376,8 +1377,9 @@ export const store = {
     const orgName = user.organization || user.department || '';
     const entitlements = orgName ? await this.getEntitlements(orgName) : [];
 
-    // Calculate user age
-    const userAge = user.dob ? calculateAge(user.dob) : 0;
+    // Calculate user completed age as of registration / booking date
+    const targetDate = bookingDate ? new Date(bookingDate) : new Date();
+    const userAge = user.dob ? calculateAge(user.dob, targetDate) : 0;
 
 
     // ── 1. Find entitlement for the SELECTED package ──
@@ -1806,7 +1808,8 @@ export const store = {
     timeSlotId?: string,
     packageId?: string,
     notes?: string,
-    selectedItems?: { id?: string; name: string; price: number }[]
+    selectedItems?: { id?: string; name: string; price: number }[],
+    isAdminOverride?: boolean
   ): Promise<BookingWithDetails> {
     const existing = await this.getUserBooking(userId);
     if (existing) {
@@ -1835,7 +1838,7 @@ export const store = {
     }
 
     const cutoffDate = campaignObj?.eligibleStartworkCutoffDate || '2026-04-01';
-    if (user.startworkDate && user.startworkDate >= cutoffDate) {
+    if (!isAdminOverride && user.startworkDate && user.startworkDate >= cutoffDate) {
       throw new Error(`ขออภัย บุคลากรที่เริ่มบรรจุ/เข้าทำงานตั้งแต่วันที่ ${cutoffDate} เป็นต้นไป จะยังไม่มีสิทธิ์เข้ารับการตรวจสุขภาพประจำปีในโครงการนี้`);
     }
 
@@ -1870,8 +1873,8 @@ export const store = {
     const queueNum = `${selectedPkg.code.split('-')[1]}-${String(slot.bookedCount + 1).padStart(3, '0')}`;
     const campaign = await this.getCampaign();
 
-    // ── Calculate pricing based on organization entitlements & selected items ──
-    const pricing = await this.calculateBookingPrice(user, selectedPkg.id, selectedItems);
+    // ── Calculate pricing based on organization entitlements & selected items as of booking slot date ──
+    const pricing = await this.calculateBookingPrice(user, selectedPkg.id, selectedItems, slot.date);
 
 
     if (db) {

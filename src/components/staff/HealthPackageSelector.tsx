@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 
-import { resolveItemPrice, isInternalStaffUser } from '@/lib/item-utils';
+import { resolveItemPrice, isInternalStaffUser, calculateAge, formatDetailedAge } from '@/lib/item-utils';
 import { getAllMasterItemsAction, getEntitlementsAction } from '@/app/actions';
 import { OrganizationEntitlement } from '@/lib/types';
 
@@ -20,6 +20,7 @@ interface HealthPackageSelectorProps {
   user: User;
   selectedPackageId: string;
   initialSelectedItems?: { id?: string; name: string; price?: number }[];
+  targetDate?: Date | string;
   onSelectPackage: (pkgId: string, selectedItems?: TestItem[], totalPrice?: number) => void;
 }
 
@@ -28,6 +29,7 @@ export function HealthPackageSelector({
   user,
   selectedPackageId,
   initialSelectedItems,
+  targetDate,
   onSelectPackage,
 }: HealthPackageSelectorProps) {
   // Master Catalog items from MySQL DB strictly
@@ -62,10 +64,9 @@ export function HealthPackageSelector({
 
   const hasEntitlements = matchingEntitlements.length > 0;
 
-  // Calculate exact user age
-  const userAge = user.dob
-    ? new Date().getFullYear() - new Date(user.dob).getFullYear()
-    : 30;
+  // Calculate exact completed user age (อายุบริบูรณ์) as of target checkup date
+  const checkupTargetDate = targetDate ? new Date(targetDate) : new Date();
+  const userAge = user.dob ? calculateAge(user.dob, checkupTargetDate) : 30;
 
   // Find packages from Admin-configured packages list
   const pkgB = packages.find((p) => p.code === 'PKG-B' || p.id === 'pkg-b') || packages[1] || packages[0];
@@ -210,6 +211,16 @@ export function HealthPackageSelector({
     }
   };
 
+  const toggleSelectAllExtraItems = () => {
+    const allNames = extraAddOnItems.map((i) => i.name);
+    const isAllSelected = allNames.length > 0 && allNames.every((n) => selectedExtraItemNames.includes(n));
+    if (isAllSelected) {
+      setSelectedExtraItemNames([]);
+    } else {
+      setSelectedExtraItemNames(allNames);
+    }
+  };
+
   const selectAllItems = () => {
     const items = getPkgItems(activePkg);
     setSelectedItemNames(items.map((i) => i.name));
@@ -278,7 +289,7 @@ export function HealthPackageSelector({
                   {pkgB.code} (สิทธิ์ฟรีสวัสดิการ 100%)
                 </span>
                 <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                  สิทธิ์เฉพาะอายุ 35 ปีขึ้นไป (อายุของคุณ {userAge} ปี)
+                  สิทธิ์เฉพาะอายุ 35 ปีขึ้นไป (อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)})
                 </span>
               </div>
               <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
@@ -295,7 +306,7 @@ export function HealthPackageSelector({
                   {pkgA.code} (สิทธิ์ฟรีสวัสดิการ 100%)
                 </span>
                 <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                  สิทธิ์เฉพาะอายุน้อยกว่า 35 ปี (อายุของคุณ {userAge} ปี)
+                  สิทธิ์เฉพาะอายุน้อยกว่า 35 ปี (อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)})
                 </span>
               </div>
               <p className="text-sm font-bold text-blue-950 dark:text-blue-100">
@@ -455,11 +466,25 @@ export function HealthPackageSelector({
                   เลือกเพิ่มรายการตรวจย่อยนอกเหนือจากแพ็กเกจ (ไม่เลือกให้อัตโนมัติ — หากเลือกจะคิดค่าบริการเพิ่มตามราคาของรายการ)
                 </p>
               </div>
-              {selectedExtraItemNames.length > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shrink-0">
-                  เลือกเพิ่ม {selectedExtraItemNames.length} รายการ (+{extraItemsPrice.toLocaleString()} บาท)
-                </span>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleSelectAllExtraItems}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors cursor-pointer"
+                >
+                  <Check className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>
+                    {extraAddOnItems.every((i) => selectedExtraItemNames.includes(i.name))
+                      ? 'ยกเลิกเลือกทั้งหมด'
+                      : 'เลือกทั้งหมด'}
+                  </span>
+                </button>
+                {selectedExtraItemNames.length > 0 && (
+                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                    เลือกแล้ว {selectedExtraItemNames.length} รายการ (+{extraItemsPrice.toLocaleString()} ฿)
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">

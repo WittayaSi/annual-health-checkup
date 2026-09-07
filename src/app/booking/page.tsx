@@ -9,7 +9,8 @@ import {
 } from '@/app/actions';
 import { CurrentBookingCard } from '@/components/staff/CurrentBookingCard';
 import { BookingCalendar } from '@/components/staff/BookingCalendar';
-import { CalendarCheck2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { CalendarCheck2, ShieldCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
 
 export default async function BookingPage() {
   const activeUser = await getActiveUserAction();
@@ -29,11 +30,13 @@ export default async function BookingPage() {
   const userBooking = await getUserBookingAction(activeUser.id);
   const packages = await getPackagesAction();
 
-  // Calculate user age & welfare eligibility
-  const userAge = activeUser.dob
-    ? new Date().getFullYear() - new Date(activeUser.dob).getFullYear()
-    : 30;
+  // Calculate user age & welfare eligibility (อายุบริบูรณ์)
+  const userAge = activeUser.dob ? calculateAge(activeUser.dob) : 30;
+  const detailedAgeStr = activeUser.dob ? formatDetailedAge(activeUser.dob) : `${userAge} ปี`;
   const isSeniorEligible = userAge >= 35;
+  const isIneligibleByStartworkDate = Boolean(
+    activeUser.startworkDate && activeUser.startworkDate >= '2026-04-01'
+  );
 
   return (
     <div className="space-y-6">
@@ -62,7 +65,7 @@ export default async function BookingPage() {
             <div className="pt-1 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0" />
               <span>
-                สิทธิ์สวัสดิการของคุณ (อายุ {userAge} ปี):{' '}
+                สิทธิ์สวัสดิการของคุณ (อายุ {detailedAgeStr}):{' '}
                 <strong className="text-slate-900 dark:text-white font-medium">
                   {isSeniorEligible ? 'PKG-B ตรวจชุดใหญ่ (ฟรี)' : 'PKG-A ตรวจชุดมาตรฐาน (ฟรี)'}
                 </strong>
@@ -85,6 +88,21 @@ export default async function BookingPage() {
           </div>
         </div>
       </div>
+
+      {/* Startwork Cutoff Date Notice for Ineligible Staff */}
+      {isIneligibleByStartworkDate && (
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 flex items-start gap-3 text-xs shadow-xs">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm text-amber-900 dark:text-amber-200">
+              แจ้งเตือนสิทธิ์การเข้ารับการตรวจสุขภาพประจำปี
+            </h4>
+            <p className="leading-relaxed">
+              ขออภัย บุคลากรที่เริ่มบรรจุ/เข้าทำงานตั้งแต่วันที่ 2026-04-01 เป็นต้นไป จะยังไม่มีสิทธิ์เข้ารับการตรวจสุขภาพประจำปีในโครงการนี้ (วันที่บรรจุ/เข้าทำงานของคุณ: {activeUser.startworkDate})
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* User Current Booking Status Section */}
       {userBooking && userBooking.status === 'CONFIRMED' ? (

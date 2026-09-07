@@ -19,6 +19,7 @@ import { AdminExportModal } from './AdminExportModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cancelBookingAction } from '@/app/actions';
 import { CalendarDays, Trash2 } from 'lucide-react';
+import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
 
 interface DailyAttendeesViewProps {
   slots: DailySlot[];
@@ -76,13 +77,15 @@ export function DailyAttendeesView({
     return slots.find((s) => s.date === selectedDate);
   }, [slots, selectedDate]);
 
-  // Get all bookings for selected date
+  // Get all bookings for selected date, sorted chronologically by createdAt (created_at)
   const dayBookings = useMemo(() => {
-    return bookings.filter((b) => {
-      if (b.dailySlot?.date === selectedDate) return true;
-      if (currentSlot && b.dailySlotId === currentSlot.id) return true;
-      return false;
-    });
+    return bookings
+      .filter((b) => {
+        if (b.dailySlot?.date === selectedDate) return true;
+        if (currentSlot && b.dailySlotId === currentSlot.id) return true;
+        return false;
+      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [bookings, selectedDate, currentSlot]);
 
   // Filtered bookings based on user inputs
@@ -395,7 +398,7 @@ export function DailyAttendeesView({
                           </p>
                           <p className="text-[11px] text-slate-400 mt-0.5">
                             {u?.gender === 'MALE' ? 'ชาย' : u?.gender === 'FEMALE' ? 'หญิง' : '-'}
-                            {u?.dob ? ` • อายุ ${new Date().getFullYear() - new Date(u.dob).getFullYear()} ปี` : ''}
+                            {u?.dob ? ` • อายุ ${formatDetailedAge(u.dob)}` : ''}
                           </p>
                         </div>
                       </td>

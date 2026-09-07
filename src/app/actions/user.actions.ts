@@ -6,6 +6,9 @@ import { cookies } from 'next/headers';
 import { User, UserRole } from '@/lib/types';
 import { formatErrorMessage } from './common';
 
+/** Session Cookie Expiration: 1 วัน (24 ชั่วโมง = 86,400 วินาที) */
+const SESSION_MAX_AGE = 60 * 60 * 24;
+
 export async function getActiveUserAction(): Promise<User | null> {
   try {
     const cookieStore = await cookies();
@@ -17,7 +20,7 @@ export async function getActiveUserAction(): Promise<User | null> {
           cookieStore.set('active_user_id', user.id, {
             path: '/',
             httpOnly: true,
-            maxAge: 3600,
+            maxAge: SESSION_MAX_AGE,
           });
         } catch (e) {}
         return user;
@@ -37,7 +40,7 @@ export async function switchUserAction(userId: string): Promise<User> {
   const user = await store.setActiveUserId(userId);
   try {
     const cookieStore = await cookies();
-    cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: 3600 });
+    cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: SESSION_MAX_AGE });
   } catch (e) {}
   revalidatePath('/');
   revalidatePath('/booking');
@@ -54,7 +57,7 @@ export async function bindLineAccountAction(
     const user = await store.bindLineAccount(username, last4NationalId, lineProfile);
     try {
       const cookieStore = await cookies();
-      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: 3600 });
+      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: SESSION_MAX_AGE });
     } catch (e) {}
     revalidatePath('/');
     revalidatePath('/booking');
@@ -83,7 +86,7 @@ export async function loginWithHospitalCredentialsAction(username: string, last4
     const user = await store.loginWithHospitalCredentials(username, last4NationalId);
     try {
       const cookieStore = await cookies();
-      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: 3600 });
+      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: SESSION_MAX_AGE });
     } catch (e) {}
     revalidatePath('/');
     revalidatePath('/booking');
@@ -100,7 +103,7 @@ export async function loginWithLineAction(lineUserId: string) {
     const user = await store.loginWithLine(lineUserId);
     try {
       const cookieStore = await cookies();
-      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: 3600 });
+      cookieStore.set('active_user_id', user.id, { path: '/', httpOnly: true, maxAge: SESSION_MAX_AGE });
     } catch (e) {}
     revalidatePath('/');
     revalidatePath('/booking');

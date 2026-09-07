@@ -261,12 +261,13 @@ export async function deleteEntitlementAction(entId: string) {
 export async function calculateBookingPriceAction(
   userId: string,
   packageId: string,
-  selectedItems?: { id?: string; name: string; price: number }[]
+  selectedItems?: { id?: string; name: string; price: number }[],
+  bookingDate?: Date | string
 ) {
   try {
     const user = await store.getUserById(userId);
     if (!user) return { success: false, error: 'ไม่พบข้อมูลผู้ใช้' };
-    const pricing = await store.calculateBookingPrice(user, packageId, selectedItems);
+    const pricing = await store.calculateBookingPrice(user, packageId, selectedItems, bookingDate);
     return { success: true, pricing };
   } catch (error: unknown) {
     const message = formatErrorMessage(error, 'เกิดข้อผิดพลาดในการคำนวณราคา');

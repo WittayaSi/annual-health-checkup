@@ -6,6 +6,7 @@ import { FileSpreadsheet, FileText, Download, X, CheckCircle2 } from 'lucide-rea
 import * as XLSX from 'xlsx';
 import { BookingWithDetails } from '@/lib/types';
 import { getBookingsAction } from '@/app/actions';
+import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
 
 interface AdminExportModalProps {
   isOpen: boolean;
@@ -56,10 +57,14 @@ export function AdminExportModal({
         list = list.filter((b) => b.dailySlot?.date === dateFilter);
       }
 
+      // Sort chronologically by createdAt (created_at)
+      list = [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
       // 2. Map data rows with Thai column titles
       const mappedRows = list.map((b, idx) => {
-        const userAge = b.user?.dob ? (new Date().getFullYear() - new Date(b.user.dob).getFullYear()) : '';
+        const userAge = b.user?.dob ? formatDetailedAge(b.user.dob) : '';
         const modeStr = b.pricingMode === 'FREE' ? 'ฟรีสวัสดิการ 100%' : b.pricingMode === 'UPGRADE' ? 'ฟรีสวัสดิการ + ชำระส่วนต่าง' : b.pricingMode === 'FLAT_RATE' ? 'เหมาจ่าย' : 'ชำระเต็มราคา';
+        const registeredAt = b.createdAt ? new Date(b.createdAt).toLocaleString('th-TH') : '';
 
         return {
           'ลำดับ': idx + 1,
@@ -68,7 +73,7 @@ export function AdminExportModal({
           'เลขบัตรประชาชน': b.user?.nationalId || '',
           'ชื่อ-นามสกุล': `${b.user?.firstName || ''} ${b.user?.lastName || ''}`.trim(),
           'เพศ': b.user?.gender === 'FEMALE' ? 'หญิง' : 'ชาย',
-          'อายุ (ปี)': userAge,
+          'อายุ (ปี เดือน วัน)': userAge,
           'สังกัดองค์กรหลัก': b.user?.organization || 'โรงพยาบาลท่าสองยาง',
           'แผนก/หน่วยงานย่อย': b.user?.department || '',
           'ตำแหน่ง': b.user?.position || '',
@@ -78,6 +83,7 @@ export function AdminExportModal({
           'รูปแบบสิทธิ์': modeStr,
           'ค่าใช้จ่ายสุทธิ (บาท)': b.totalPrice !== undefined ? b.totalPrice : 0,
           'สถานะ': b.status === 'CONFIRMED' ? 'ยืนยันสิทธิ์' : 'ยกเลิก',
+          'เวลาลงทะเบียน': registeredAt,
           'หมายเหตุ': b.notes || '',
         };
       });
