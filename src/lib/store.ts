@@ -46,13 +46,17 @@ import { resolveItemPrice, detectGender, isInternalStaffUser } from './item-util
 
 let activeUserIdStore: string = 'usr-1';
 
-/** Calculate age from DOB string (YYYY-MM-DD) */
-function calculateAge(dob: string): number {
+/** Calculate exact completed age (อายุบริบูรณ์) from DOB string (YYYY-MM-DD) as of registration/booking date */
+function calculateAge(dob: string, targetDate: Date = new Date()): number {
+  if (!dob) return 0;
   const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+  if (isNaN(birth.getTime())) return 0;
+
+  const target = targetDate || new Date();
+  let age = target.getFullYear() - birth.getFullYear();
+  const monthDiff = target.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && target.getDate() < birth.getDate())) {
     age--;
   }
   return age;
