@@ -1,6 +1,15 @@
 import mysql from 'mysql2/promise';
 
 export async function getHosOfficeConnection() {
+  const dbUrl = process.env.HOSOFFICE_DATABASE_URL || process.env.HOSOFFICE_DB_URL;
+  if (dbUrl) {
+    const connection = await mysql.createConnection({
+      uri: dbUrl.replace(/^["']|["']$/g, '').trim(),
+      connectTimeout: 5000,
+    });
+    return connection;
+  }
+
   const host = process.env.HOSOFFICE_DB_HOST || 'localhost';
   const port = Number(process.env.HOSOFFICE_DB_PORT || 3306);
   const user = process.env.HOSOFFICE_DB_USER || 'root';
@@ -100,16 +109,13 @@ export async function fetchHosOfficeStaff(): Promise<HosOfficePersonRow[]> {
         password: r.passwordRaw ? String(r.passwordRaw).trim() : undefined,
         startworkDate: r.startworkDateRaw ? String(r.startworkDateRaw).trim() : undefined,
         telegramToken: r.telegramTokenRaw ? String(r.telegramTokenRaw).trim() : undefined,
-        telegramChatId: r.telegramChannelRaw
-          ? String(r.telegramChannelRaw).trim()
-          : r.telegramChatIdRaw
-            ? String(r.telegramChatIdRaw).trim()
-            : undefined,
+        telegramChatId: r.telegramChatIdRaw ? String(r.telegramChatIdRaw).trim() : undefined,
       };
     });
 
-  } catch (error) {
-    console.error('Error fetching staff from HOSOffice DB:', error);
-    throw error;
+  } catch (error: any) {
+    const targetHost = process.env.HOSOFFICE_DATABASE_URL || process.env.HOSOFFICE_DB_URL || `${process.env.HOSOFFICE_DB_HOST || 'localhost'}:${process.env.HOSOFFICE_DB_PORT || 3306}`;
+    console.error(`Error fetching staff from HOSOffice DB (${targetHost}):`, error);
+    throw new Error(`ไม่สามารถเชื่อมต่อ HOSOffice DB (${targetHost}) ได้: ${error.message || String(error)}`);
   }
 }
