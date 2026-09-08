@@ -85,7 +85,7 @@ export function AdminSettingsView() {
 
       {/* QUICK SUMMARY CARDS */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">องค์กร/สังกัดทั้งหมด</span>
             <Building2 className="h-4 w-4 text-emerald-600" />
@@ -95,7 +95,7 @@ export function AdminSettingsView() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">โครงการจองทั้งหมด</span>
             <FolderOpen className="h-4 w-4 text-blue-600" />
@@ -105,7 +105,7 @@ export function AdminSettingsView() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">รายการแล็บใน Master Catalog</span>
             <FlaskConical className="h-4 w-4 text-purple-600" />
@@ -115,7 +115,7 @@ export function AdminSettingsView() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">ผู้ใช้งานในระบบ</span>
             <Users className="h-4 w-4 text-amber-600" />

@@ -88,7 +88,7 @@ export function SlotsView() {
       {/* Dynamic Metric Cards per Selected Campaign */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Quota */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">โควต้ารวมในโครงการ</span>
             <Users className="h-4 w-4 text-emerald-600" />
@@ -102,7 +102,7 @@ export function SlotsView() {
         </div>
 
         {/* Total Booked */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">จำนวนจองแล้ว</span>
             <CheckCircle className="h-4 w-4 text-emerald-600" />
@@ -116,7 +116,7 @@ export function SlotsView() {
         </div>
 
         {/* Package Breakdown */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">สัดส่วนโปรแกรมตรวจ</span>
             <Stethoscope className="h-4 w-4 text-blue-500" />
@@ -138,7 +138,7 @@ export function SlotsView() {
         </div>
 
         {/* Occupancy Rate */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">อัตราการจองเต็ม</span>
             <Percent className="h-4 w-4 text-purple-500" />

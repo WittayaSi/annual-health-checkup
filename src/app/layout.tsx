@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Prompt } from 'next/font/google';
+import { Prompt, Sarabun, Outfit } from 'next/font/google';
 import './globals.css';
 import { AppLayoutWrapper } from '@/components/layout/AppLayoutWrapper';
 import { getActiveUserAction, getAllUsersAction, getCampaignAction } from '@/app/actions';
@@ -13,6 +13,21 @@ const prompt = Prompt({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ['latin', 'thai'],
   display: 'swap',
+  variable: '--font-prompt',
+});
+
+const sarabun = Sarabun({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['latin', 'thai'],
+  display: 'swap',
+  variable: '--font-sarabun',
+});
+
+const outfit = Outfit({
+  weight: ['400', '500', '600', '700', '800'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-outfit',
 });
 
 export const metadata: Metadata = {
@@ -46,7 +61,7 @@ export default async function RootLayout({
   const campaign = await getCampaignAction();
 
   return (
-    <html lang="th" className="h-full scroll-smooth" data-scroll-behavior="smooth">
+    <html lang="th" className={`h-full scroll-smooth ${prompt.variable} ${sarabun.variable} ${outfit.variable}`} data-scroll-behavior="smooth">
       <body className={`${prompt.className} flex min-h-full flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300`}>
         <ThemeProvider>
           <AppLayoutWrapper activeUser={activeUser} allUsers={allUsers} campaign={campaign}>
