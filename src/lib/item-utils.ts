@@ -84,4 +84,51 @@ export function formatDetailedAge(dob?: string | null, targetDate: Date = new Da
   return `${years} ปี ${months} เดือน ${days} วัน`;
 }
 
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const THAI_DAYS_OF_WEEK = [
+  'อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'
+];
+
+/**
+ * Format YYYY-MM-DD date string to Thai format e.g. "2 ตุลาคม 2569" or "วันศุกร์ที่ 2 ต.ค. 2569"
+ */
+export function formatThaiDate(
+  dateStr?: string | null,
+  mode: 'full' | 'short' | 'with-day' = 'full'
+): string {
+  if (!dateStr) return '-';
+  const cleanStr = String(dateStr).split('T')[0].trim();
+  const parts = cleanStr.split('-');
+  if (parts.length < 3) return dateStr;
+
+  const yearNum = Number(parts[0]);
+  const monthNum = Number(parts[1]);
+  const dayNum = Number(parts[2]);
+
+  if (isNaN(yearNum) || isNaN(monthNum) || isNaN(dayNum) || monthNum < 1 || monthNum > 12) {
+    return dateStr;
+  }
+
+  const thaiYear = yearNum + 543;
+  const monthName = mode === 'short' ? THAI_MONTHS_SHORT[monthNum - 1] : THAI_MONTHS_FULL[monthNum - 1];
+
+  if (mode === 'with-day') {
+    const dObj = new Date(yearNum, monthNum - 1, dayNum);
+    const dayOfWeekName = THAI_DAYS_OF_WEEK[dObj.getDay()];
+    return `วัน${dayOfWeekName}ที่ ${dayNum} ${THAI_MONTHS_SHORT[monthNum - 1]} ${thaiYear}`;
+  }
+
+  return `${dayNum} ${monthName} ${thaiYear}`;
+}
+
+
 

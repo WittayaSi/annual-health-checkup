@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { processBookingRemindersAction, toggleMaintenanceModeAction } from '@/app/actions';
 import { Campaign, DailySlot, BookingWithDetails, AuditLog, User, CheckupPackage, Organization, MasterItem } from '@/lib/types';
+import { formatThaiDate } from '@/lib/item-utils';
 import { EditDailySlotDialog } from './EditDailySlotDialog';
 import { AdminCampaignConfigDialog } from './AdminCampaignConfigDialog';
 import { AdminPackageConfigDialog } from './AdminPackageConfigDialog';
@@ -150,8 +151,11 @@ export function AdminDashboard({
   const filteredSlots = useMemo(() => {
     return campaignSlots.filter((slot) => {
       if (searchTerm) {
-        const dateMatch = slot.date.includes(searchTerm);
-        const noteMatch = slot.holidayNote?.toLowerCase().includes(searchTerm.toLowerCase());
+        const q = searchTerm.toLowerCase();
+        const dateMatch = slot.date.includes(q) ||
+          formatThaiDate(slot.date, 'full').toLowerCase().includes(q) ||
+          formatThaiDate(slot.date, 'with-day').toLowerCase().includes(q);
+        const noteMatch = slot.holidayNote?.toLowerCase().includes(q);
         if (!dateMatch && !noteMatch) return false;
       }
 
@@ -496,8 +500,13 @@ export function AdminDashboard({
 
                       return (
                         <tr key={slot.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="py-3 px-4 font-medium text-slate-900 dark:text-white tabular-nums">
-                            {slot.date}
+                          <td className="py-3 px-4 text-slate-900 dark:text-white">
+                            <span className="font-semibold text-slate-900 dark:text-white block text-xs sm:text-sm">
+                              {formatThaiDate(slot.date, 'with-day')}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-normal block">
+                              ({formatThaiDate(slot.date, 'full')})
+                            </span>
                           </td>
                           <td className="py-3 px-4">
                             <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">

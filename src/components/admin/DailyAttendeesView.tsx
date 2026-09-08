@@ -19,7 +19,7 @@ import { AdminExportModal } from './AdminExportModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cancelBookingAction } from '@/app/actions';
 import { CalendarDays, Trash2 } from 'lucide-react';
-import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
+import { calculateAge, formatDetailedAge, formatThaiDate } from '@/lib/item-utils';
 
 interface DailyAttendeesViewProps {
   slots: DailySlot[];
@@ -276,7 +276,7 @@ export function DailyAttendeesView({
                   const count = bookings.filter((b) => b.dailySlot?.date === s.date || b.dailySlotId === s.id).length;
                   return (
                     <option key={s.id} value={s.date}>
-                      📅 {s.date} ({count} คน / โควต้า {s.quota})
+                      📅 {formatThaiDate(s.date, 'with-day')} ({count} คน / โควต้า {s.quota})
                     </option>
                   );
                 })}

@@ -22,6 +22,7 @@ import { AdminExportModal } from './AdminExportModal';
 import { AdminBookModal } from './AdminBookModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cancelBookingAction } from '@/app/actions';
+import { formatThaiDate } from '@/lib/item-utils';
 
 interface SlotBookingsDialogProps {
   slot: DailySlot | null;
@@ -126,7 +127,7 @@ export function SlotBookingsDialog({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>รายชื่อผู้จองตรวจสุขภาพประจำวันที่ {slot.date}</span>
+                <span>รายชื่อผู้จองตรวจสุขภาพประจำ{formatThaiDate(slot.date, 'with-day')}</span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
                   {dayBookings.length} / {slot.quota} คิว
                 </span>
