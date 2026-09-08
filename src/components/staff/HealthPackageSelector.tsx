@@ -44,7 +44,13 @@ export function HealthPackageSelector({
 
   // Pregnancy screening state (only applicable for female staff)
   const isFemale = detectGender(user.firstName, user.gender) === 'FEMALE';
-  const [isPregnant, setIsPregnant] = useState<boolean>(initialIsPregnant);
+  const [isPregnant, setIsPregnant] = useState<boolean>(Boolean(initialIsPregnant));
+
+  useEffect(() => {
+    if (typeof initialIsPregnant === 'boolean') {
+      setIsPregnant(initialIsPregnant);
+    }
+  }, [initialIsPregnant]);
 
 
 

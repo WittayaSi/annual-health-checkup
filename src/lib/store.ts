@@ -2250,7 +2250,8 @@ export const store = {
     newTimeSlotId?: string,
     newPackageId?: string,
     notes?: string,
-    selectedItems?: { id?: string; name: string; price: number }[]
+    selectedItems?: { id?: string; name: string; price: number }[],
+    isPregnant?: boolean
   ): Promise<BookingWithDetails> {
     const bookingsList = await this.getBookings();
     const existing = bookingsList.find((b) => b.id === bookingId);
@@ -2258,6 +2259,9 @@ export const store = {
 
     const userId = existing.userId;
     const pkgId = newPackageId || existing.packageId || undefined;
+    const resolvedIsPregnant = isPregnant !== undefined
+      ? isPregnant
+      : Boolean(existing.isPregnant || existing.notes?.includes('ตั้งครรภ์'));
 
     // 1. Cancel existing booking
     await this.cancelBooking(bookingId);
@@ -2271,7 +2275,7 @@ export const store = {
       notes || existing.notes || undefined,
       selectedItems,
       false,
-      existing.isPregnant
+      resolvedIsPregnant
     );
 
     await this.logAudit(

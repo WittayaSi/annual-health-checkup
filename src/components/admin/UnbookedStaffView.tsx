@@ -61,9 +61,9 @@ export function UnbookedStaffView({
   // Admin book modal state
   const [targetUserForBooking, setTargetUserForBooking] = useState<User | null>(null);
 
-  // Active users list
+  // Active staff users list (excluding only technical system account sys_admin)
   const activeUsers = useMemo(() => {
-    return users.filter((u) => u.isActive !== false);
+    return users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
   }, [users]);
 
   // Booked user IDs for the selected campaign

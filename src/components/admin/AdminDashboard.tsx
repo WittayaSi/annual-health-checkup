@@ -41,6 +41,7 @@ import { AdminEntitlementsDialog } from './AdminEntitlementsDialog';
 import { AdminExportModal } from './AdminExportModal';
 import { DailyAttendeesView } from './DailyAttendeesView';
 import { UnbookedStaffView } from './UnbookedStaffView';
+import { DepartmentReportsView } from './DepartmentReportsView';
 
 interface AdminDashboardProps {
   activeUser?: User | null;
@@ -73,7 +74,7 @@ export function AdminDashboard({
   const isFullAdmin = activeUser?.role === 'ADMIN';
   const isSuperStaff = activeUser?.role === 'SUPER_STAFF';
 
-  const [activeTab, setActiveTab] = useState<'SLOTS' | 'ATTENDEES' | 'UNBOOKED' | 'AUDIT'>('SLOTS');
+  const [activeTab, setActiveTab] = useState<'SLOTS' | 'ATTENDEES' | 'DEPT_REPORTS' | 'UNBOOKED' | 'AUDIT'>('SLOTS');
 
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isDeptRulesOpen, setIsDeptRulesOpen] = useState(false);
@@ -152,7 +153,7 @@ export function AdminDashboard({
   const pkgACount = confirmedBookings.filter((b) => b.packageId === 'pkg-a' || b.package?.code === 'PKG-A').length;
   const pkgBCount = confirmedBookings.filter((b) => b.packageId === 'pkg-b' || b.package?.code === 'PKG-B').length;
 
-  const activeStaffCount = users.filter((u) => u.isActive !== false).length;
+  const activeStaffCount = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin').length;
   const bookedUserIds = new Set(confirmedBookings.map((b) => b.userId));
   const bookedStaffCount = bookedUserIds.size;
   const unbookedStaffCount = Math.max(0, activeStaffCount - bookedStaffCount);
@@ -329,6 +330,17 @@ export function AdminDashboard({
         >
           <Users className="h-4 w-4" />
           <span>📋 รายชื่อผู้ตรวจประจำวัน (Daily Attendees)</span>
+        </button>
+
+        <button
+          onClick={() => startViewTransition(() => setActiveTab('DEPT_REPORTS'))}
+          className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors border-b-2 -mb-px shrink-0 cursor-pointer ${activeTab === 'DEPT_REPORTS'
+              ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-semibold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+        >
+          <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span>📊 รายงานเปอร์เซ็นต์แยกรายแผนก</span>
         </button>
 
         <button
@@ -620,7 +632,22 @@ export function AdminDashboard({
         />
       )}
 
-      {/* TAB 3: UNBOOKED STAFF TRACKER */}
+      {/* TAB 3: DEPARTMENT PERCENTAGE & FOLLOW-UP REPORTS */}
+      {activeTab === 'DEPT_REPORTS' && (
+        <DepartmentReportsView
+          users={users}
+          bookings={bookings}
+          selectedCampaignId={selectedCampaignId}
+          campaigns={allCampaigns}
+          organizations={orgList}
+          dailySlots={campaignSlots}
+          packages={packages}
+          masterItems={masterItems}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {/* TAB 4: UNBOOKED STAFF TRACKER */}
       {activeTab === 'UNBOOKED' && (
         <UnbookedStaffView
           users={users}

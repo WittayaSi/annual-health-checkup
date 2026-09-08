@@ -128,7 +128,8 @@ export async function rescheduleBookingAction(
   newTimeSlotId?: string,
   newPackageId?: string,
   notes?: string,
-  selectedItems?: { id?: string; name: string; price: number }[]
+  selectedItems?: { id?: string; name: string; price: number }[],
+  isPregnant?: boolean
 ) {
   try {
     const bookingsList = await store.getBookings();
@@ -141,7 +142,8 @@ export async function rescheduleBookingAction(
       newTimeSlotId,
       newPackageId,
       notes,
-      selectedItems
+      selectedItems,
+      isPregnant
     );
 
     try {

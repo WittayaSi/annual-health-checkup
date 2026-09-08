@@ -64,6 +64,17 @@ export function AdminBookModal({
   );
   const [selectedLabItems, setSelectedLabItems] = useState<TestItem[]>([]);
   const [calculatedPrice, setCalculatedPrice] = useState<number>(0);
+  const [isPregnant, setIsPregnant] = useState<boolean>(
+    Boolean(existingBooking?.isPregnant || existingBooking?.notes?.includes('ตั้งครรภ์'))
+  );
+
+  useEffect(() => {
+    if (existingBooking) {
+      setIsPregnant(Boolean(existingBooking.isPregnant || existingBooking.notes?.includes('ตั้งครรภ์')));
+    } else {
+      setIsPregnant(false);
+    }
+  }, [existingBooking, isOpen]);
 
   const [notes, setNotes] = useState<string>(existingBooking?.notes || '');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -78,10 +89,11 @@ export function AdminBookModal({
 
   if (!isOpen || !user) return null;
 
-  const handleSelectPackage = (pkgId: string, items?: TestItem[], totalPrice?: number) => {
+  const handleSelectPackage = (pkgId: string, items?: TestItem[], totalPrice?: number, isPreg?: boolean) => {
     setSelectedPackageId(pkgId);
     if (items) setSelectedLabItems(items);
     if (typeof totalPrice === 'number') setCalculatedPrice(totalPrice);
+    if (typeof isPreg === 'boolean') setIsPregnant(isPreg);
   };
 
   const handleSubmit = async () => {
@@ -114,7 +126,8 @@ export function AdminBookModal({
           undefined,
           selectedPackageId,
           fullNotes,
-          chosenItems
+          chosenItems,
+          isPregnant
         );
         if (res.success) {
           onSuccess();
@@ -130,7 +143,9 @@ export function AdminBookModal({
           targetSlot?.timeSlots?.[0]?.id || `${selectedSlotId}-t1`,
           selectedPackageId,
           fullNotes,
-          chosenItems
+          chosenItems,
+          false,
+          isPregnant
         );
         if (res.success) {
           onSuccess();
@@ -247,6 +262,7 @@ export function AdminBookModal({
               user={user}
               selectedPackageId={selectedPackageId}
               initialSelectedItems={initialItems}
+              initialIsPregnant={isPregnant}
               targetDate={dailySlots.find((s) => s.id === selectedSlotId)?.date || existingBooking?.dailySlot?.date}
               onSelectPackage={handleSelectPackage}
             />
