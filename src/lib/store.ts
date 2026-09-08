@@ -40,9 +40,10 @@ import {
   TestItem,
   OrganizationEntitlement,
   PricingMode,
+  DepartmentItemRule,
 } from './types';
 import { fetchHosOfficeStaff } from '@/db/hosoffice';
-import { resolveItemPrice, detectGender, isInternalStaffUser } from './item-utils';
+import { resolveItemPrice, detectGender, isInternalStaffUser, getDepartmentItemRule } from './item-utils';
 
 let activeUserIdStore: string = 'usr-1';
 
@@ -913,13 +914,16 @@ export const store = {
           name: schema.items.name,
           price: schema.items.price,
           customPrice: schema.packageItems.customPrice,
+          contraindicatedIfPregnant: schema.items.contraindicatedIfPregnant,
+          targetGender: schema.items.targetGender,
+          category: schema.items.category,
         })
         .from(schema.packageItems)
         .innerJoin(schema.items, eq(schema.packageItems.itemId, schema.items.id));
 
       return rows.map((r) => {
         const pkgDbItems = dbPackageItems.filter((i) => i.packageId === r.id);
-        let itemsList: { id?: string; name: string; price: number }[] = [];
+        let itemsList: TestItem[] = [];
         let labTests: string[] = [];
 
         if (pkgDbItems.length > 0) {
@@ -929,6 +933,9 @@ export const store = {
               id: i.itemId,
               name: i.name,
               price: resolveItemPrice(i.name, rawP),
+              contraindicatedIfPregnant: Boolean(i.contraindicatedIfPregnant),
+              targetGender: (i.targetGender as 'ALL' | 'MALE' | 'FEMALE') || 'ALL',
+              category: i.category || undefined,
             };
           });
           labTests = itemsList.map((i) => i.name);
@@ -1161,6 +1168,10 @@ export const store = {
         name: r.name,
         price: r.price,
         category: r.category || undefined,
+        contraindicatedIfPregnant: Boolean(r.contraindicatedIfPregnant),
+        targetGender: (r.targetGender as 'ALL' | 'MALE' | 'FEMALE') || 'ALL',
+        minAge: r.minAge ?? null,
+        maxAge: r.maxAge ?? null,
       }));
     } catch {
       return [];
@@ -1171,13 +1182,24 @@ export const store = {
     name: string;
     price: number;
     category?: string;
+    contraindicatedIfPregnant?: boolean;
+    targetGender?: 'ALL' | 'MALE' | 'FEMALE';
+    minAge?: number | null;
+    maxAge?: number | null;
   }): Promise<TestItem> {
     const newItemId = `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const isPregnantContraindicated = data.contraindicatedIfPregnant ?? false;
+    const targetGender = data.targetGender || 'ALL';
+
     const newItem: TestItem = {
       id: newItemId,
       name: data.name,
       price: data.price,
       category: data.category,
+      contraindicatedIfPregnant: isPregnantContraindicated,
+      targetGender,
+      minAge: data.minAge ?? null,
+      maxAge: data.maxAge ?? null,
     };
 
     if (db) {
@@ -1186,6 +1208,10 @@ export const store = {
         name: data.name,
         price: data.price,
         category: data.category || null,
+        contraindicatedIfPregnant: isPregnantContraindicated,
+        targetGender,
+        minAge: data.minAge ?? null,
+        maxAge: data.maxAge ?? null,
         createdAt: new Date(),
       });
     }
@@ -1205,16 +1231,25 @@ export const store = {
       name?: string;
       price?: number;
       category?: string;
+      contraindicatedIfPregnant?: boolean;
+      targetGender?: 'ALL' | 'MALE' | 'FEMALE';
+      minAge?: number | null;
+      maxAge?: number | null;
     }
   ): Promise<TestItem> {
     if (db) {
+      const setObj: any = {};
+      if (updates.name !== undefined) setObj.name = updates.name;
+      if (updates.price !== undefined) setObj.price = updates.price;
+      if (updates.category !== undefined) setObj.category = updates.category || null;
+      if (updates.contraindicatedIfPregnant !== undefined) setObj.contraindicatedIfPregnant = updates.contraindicatedIfPregnant;
+      if (updates.targetGender !== undefined) setObj.targetGender = updates.targetGender;
+      if (updates.minAge !== undefined) setObj.minAge = updates.minAge;
+      if (updates.maxAge !== undefined) setObj.maxAge = updates.maxAge;
+
       await db
         .update(schema.items)
-        .set({
-          name: updates.name,
-          price: updates.price,
-          category: updates.category !== undefined ? updates.category : null,
-        })
+        .set(setObj)
         .where(eq(schema.items.id, itemId));
     }
 
@@ -1237,6 +1272,128 @@ export const store = {
       activeUserIdStore,
       'UPDATE_SLOT',
       `ลบรายการตรวจสุขภาพย่อย (Master Catalog) ID: ${itemId}`
+    );
+  },
+
+  // --- Department Item Rules (MySQL schema.departmentItemRules) ---
+  async getDepartmentRules(departmentName?: string): Promise<DepartmentItemRule[]> {
+    if (!db) return [];
+    try {
+      let rows;
+      if (departmentName && departmentName !== 'ALL') {
+        rows = await db
+          .select()
+          .from(schema.departmentItemRules)
+          .where(eq(schema.departmentItemRules.departmentName, departmentName));
+      } else {
+        rows = await db.select().from(schema.departmentItemRules);
+      }
+      return rows.map((r) => ({
+        id: r.id,
+        departmentName: r.departmentName,
+        riskGroup: r.riskGroup || undefined,
+        itemId: r.itemId || undefined,
+        itemName: r.itemName,
+        ruleType: r.ruleType as any,
+        specialPrice: r.specialPrice ?? null,
+        minAge: r.minAge ?? null,
+        maxAge: r.maxAge ?? null,
+        gender: r.gender || 'ALL',
+        ruleMessage: r.ruleMessage || undefined,
+        createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
+        updatedAt: r.updatedAt ? r.updatedAt.toISOString() : undefined,
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  async createDepartmentRule(data: {
+    departmentName: string;
+    riskGroup?: string;
+    itemId?: string;
+    itemName: string;
+    ruleType: 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_PRICE' | 'HIDDEN';
+    specialPrice?: number;
+    minAge?: number;
+    maxAge?: number;
+    gender?: string;
+    ruleMessage?: string;
+  }): Promise<DepartmentItemRule> {
+    const id = `drule-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date();
+    if (db) {
+      await db.insert(schema.departmentItemRules).values({
+        id,
+        departmentName: data.departmentName,
+        riskGroup: data.riskGroup || null,
+        itemId: data.itemId || null,
+        itemName: data.itemName,
+        ruleType: data.ruleType,
+        specialPrice: data.specialPrice ?? 0,
+        minAge: data.minAge ?? null,
+        maxAge: data.maxAge ?? null,
+        gender: data.gender || 'ALL',
+        ruleMessage: data.ruleMessage || null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await this.logAudit(
+      activeUserIdStore,
+      'UPDATE_SLOT',
+      `กำหนดสิทธิ์แล็บเฉพาะแผนก: ${data.departmentName} -> ${data.itemName} (${data.ruleType})`
+    );
+
+    const all = await this.getDepartmentRules();
+    return all.find((r) => r.id === id)!;
+  },
+
+  async updateDepartmentRule(
+    ruleId: string,
+    updates: Partial<{
+      departmentName: string;
+      riskGroup: string;
+      itemId: string;
+      itemName: string;
+      ruleType: 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_PRICE' | 'HIDDEN';
+      specialPrice: number;
+      minAge: number;
+      maxAge: number;
+      gender: string;
+      ruleMessage: string;
+    }>
+  ): Promise<DepartmentItemRule> {
+    if (db) {
+      await db
+        .update(schema.departmentItemRules)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.departmentItemRules.id, ruleId));
+    }
+
+    await this.logAudit(
+      activeUserIdStore,
+      'UPDATE_SLOT',
+      `แก้ไขสิทธิ์แล็บเฉพาะแผนก ID: ${ruleId}`
+    );
+
+    const all = await this.getDepartmentRules();
+    return all.find((r) => r.id === ruleId)!;
+  },
+
+  async deleteDepartmentRule(ruleId: string): Promise<void> {
+    if (db) {
+      await db.delete(schema.departmentItemRules).where(eq(schema.departmentItemRules.id, ruleId));
+    }
+
+    await this.logAudit(
+      activeUserIdStore,
+      'UPDATE_SLOT',
+      `ลบสิทธิ์แล็บเฉพาะแผนก ID: ${ruleId}`
     );
   },
 
@@ -1376,6 +1533,7 @@ export const store = {
 
     const orgName = user.organization || user.department || '';
     const entitlements = orgName ? await this.getEntitlements(orgName) : [];
+    const dbRules = await this.getDepartmentRules();
 
     // Calculate user completed age as of registration / booking date
     const targetDate = bookingDate ? new Date(bookingDate) : new Date();
@@ -1458,12 +1616,19 @@ export const store = {
         const pkgItemNames = new Set((selectedPkg.items || []).map((i) => i.name.trim().toLowerCase()));
 
         const items = itemsToPrice.map((item) => {
-          const isCovered = pkgItemNames.has(item.name.trim().toLowerCase());
+          const inPkg = pkgItemNames.has(item.name.trim().toLowerCase());
+          const deptRule = getDepartmentItemRule(item.name, user.department || user.organization, dbRules);
+          const isCovered = inPkg || deptRule.isFree;
+          const chargedPrice = isCovered
+            ? 0
+            : deptRule.specialPrice !== null && deptRule.specialPrice !== undefined
+            ? deptRule.specialPrice
+            : item.price;
           return {
             itemId: item.id,
             itemName: item.name,
             price: item.price,
-            chargedPrice: isCovered ? 0 : item.price,
+            chargedPrice,
             isCovered,
           };
         });
@@ -1496,21 +1661,30 @@ export const store = {
       const baseItemNames = new Set((basePkg?.items || []).map((i) => i.name.trim().toLowerCase()));
 
       const items = itemsToPrice.map((item) => {
-        const isCovered = (item.id && baseItemIds.has(item.id)) ||
+        const inBase = (item.id && baseItemIds.has(item.id)) ||
           baseItemNames.has(item.name.trim().toLowerCase());
+        const deptRule = getDepartmentItemRule(item.name, user.department || user.organization, dbRules);
+        const isCovered = inBase || deptRule.isFree;
+        const chargedPrice = isCovered
+          ? 0
+          : deptRule.specialPrice !== null && deptRule.specialPrice !== undefined
+          ? deptRule.specialPrice
+          : item.price;
         return {
           itemId: item.id,
           itemName: item.name,
           price: item.price,
-          chargedPrice: isCovered ? 0 : item.price,
+          chargedPrice,
           isCovered,
         };
       });
 
+      const totalPrice = items.reduce((sum, i) => sum + i.chargedPrice, 0);
+
       return {
-        pricingMode: 'UPGRADE',
+        pricingMode: totalPrice > 0 ? 'UPGRADE' : 'FREE',
         entitlementPackageId: freeEntitlement.packageId,
-        totalPrice: items.reduce((sum, i) => sum + i.chargedPrice, 0),
+        totalPrice,
         flatRatePrice: null,
         items,
       };
@@ -1717,6 +1891,7 @@ export const store = {
       const slotsList = await this.getDailySlots();
       const packagesList = await this.getPackages();
       const campaign = await this.getCampaign();
+      const dbRules = await this.getDepartmentRules();
 
       const rows = await db.select().from(schema.bookings).orderBy(desc(schema.bookings.createdAt));
       let allBookingItems: any[] = [];
@@ -1734,15 +1909,22 @@ export const store = {
 
         const items = allBookingItems
           .filter((bi) => bi.bookingId === r.id)
-          .map((bi) => ({
-            id: bi.id,
-            bookingId: bi.bookingId,
-            itemId: bi.itemId || undefined,
-            itemName: bi.itemName,
-            price: bi.price || 0,
-            chargedPrice: bi.chargedPrice || 0,
-            isCoveredByEntitlement: Boolean(bi.isCoveredByEntitlement),
-          }));
+          .map((bi) => {
+            const deptRule = getDepartmentItemRule(bi.itemName, user?.department || user?.organization, dbRules);
+            const isFreeByRule = deptRule.isFree;
+            const chargedPrice = isFreeByRule ? 0 : (bi.chargedPrice || 0);
+            const isCoveredByEntitlement = isFreeByRule || Boolean(bi.isCoveredByEntitlement);
+
+            return {
+              id: bi.id,
+              bookingId: bi.bookingId,
+              itemId: bi.itemId || undefined,
+              itemName: bi.itemName,
+              price: bi.price || 0,
+              chargedPrice,
+              isCoveredByEntitlement,
+            };
+          });
 
         // Fallback: parse from notes string if items array is empty
         if (items.length === 0 && r.notes && r.notes.includes('[รายการตรวจที่เลือก:')) {
@@ -1750,18 +1932,22 @@ export const store = {
           if (match && match[1]) {
             const rawNames = match[1].split(',').map((s) => s.trim()).filter((s) => s && s !== 'ทั้งหมด');
             rawNames.forEach((name, idx) => {
+              const deptRule = getDepartmentItemRule(name, user?.department || user?.organization, dbRules);
               items.push({
                 id: `parsed-${r.id}-${idx}`,
                 bookingId: r.id,
                 itemId: undefined,
                 itemName: name,
                 price: 0,
-                chargedPrice: 0,
+                chargedPrice: deptRule.isFree ? 0 : 0,
                 isCoveredByEntitlement: true,
               });
             });
           }
         }
+
+        const recalculatedTotalPrice = items.reduce((sum, i) => sum + i.chargedPrice, 0);
+        const resolvedPricingMode = r.pricingMode === 'UPGRADE' && recalculatedTotalPrice === 0 ? 'FREE' : ((r.pricingMode as PricingMode) || 'FREE');
 
         return {
           id: r.id,
@@ -1773,9 +1959,10 @@ export const store = {
           entitlementPackageId: r.entitlementPackageId || null,
           queueNumber: r.queueNumber || undefined,
           status: r.status as any,
-          pricingMode: (r.pricingMode as PricingMode) || 'FREE',
-          totalPrice: r.totalPrice || 0,
+          pricingMode: resolvedPricingMode,
+          totalPrice: recalculatedTotalPrice,
           flatRatePrice: r.flatRatePrice || null,
+          isPregnant: Boolean(r.isPregnant),
           notes: r.notes || undefined,
           reminderSent: Boolean(r.reminderSent),
           reminderLastAttemptAt: r.reminderLastAttemptAt ? r.reminderLastAttemptAt.toISOString() : null,
@@ -1809,7 +1996,8 @@ export const store = {
     packageId?: string,
     notes?: string,
     selectedItems?: { id?: string; name: string; price: number }[],
-    isAdminOverride?: boolean
+    isAdminOverride?: boolean,
+    isPregnant?: boolean
   ): Promise<BookingWithDetails> {
     const existing = await this.getUserBooking(userId);
     if (existing) {
@@ -1935,6 +2123,7 @@ export const store = {
           pricingMode: pricing.pricingMode,
           totalPrice: pricing.totalPrice,
           flatRatePrice: pricing.flatRatePrice,
+          isPregnant: isPregnant ?? false,
           notes: notes || `[รายการตรวจที่เลือก: ${pricing.items.map((i) => i.itemName).join(', ') || 'ทั้งหมด'}] [ราคารวม: ${pricing.totalPrice} บาท]`,
           createdAt: now,
           updatedAt: now,
@@ -1979,6 +2168,8 @@ export const store = {
                 name: item.itemName,
                 price: item.price || 0,
                 category: 'ทั่วไป',
+                contraindicatedIfPregnant: false,
+                targetGender: 'ALL',
                 createdAt: new Date(),
               });
               masterItemsList.push({
@@ -1986,6 +2177,10 @@ export const store = {
                 name: item.itemName,
                 price: item.price || 0,
                 category: 'ทั่วไป',
+                contraindicatedIfPregnant: false,
+                targetGender: 'ALL',
+                minAge: null,
+                maxAge: null,
                 createdAt: new Date(),
               });
             }
@@ -2074,7 +2269,9 @@ export const store = {
       newTimeSlotId,
       pkgId,
       notes || existing.notes || undefined,
-      selectedItems
+      selectedItems,
+      false,
+      existing.isPregnant
     );
 
     await this.logAudit(

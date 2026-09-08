@@ -143,9 +143,19 @@ export function PrintableQueueTicket({ booking, onClose }: PrintableQueueTicketP
                 <span>2. เจาะเลือด & ส่งสิ่งส่งตรวจปัสสาวะ</span>
                 <span className="h-3.5 w-3.5 rounded border border-slate-300" />
               </div>
-              <div className="flex items-center justify-between p-1.5 rounded bg-white border border-slate-200">
+              <div className={`flex items-center justify-between p-1.5 rounded border ${
+                booking.isPregnant || booking.notes?.includes('ตั้งครรภ์')
+                  ? 'bg-pink-50 border-pink-200 text-pink-700'
+                  : 'bg-white border-slate-200'
+              }`}>
                 <span>3. เอกซเรย์ปอดและหัวใจ (Chest X-Ray)</span>
-                <span className="h-3.5 w-3.5 rounded border border-slate-300" />
+                {booking.isPregnant || booking.notes?.includes('ตั้งครรภ์') ? (
+                  <span className="font-bold text-[10px] text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded">
+                    [งดตรวจ (ตั้งครรภ์)]
+                  </span>
+                ) : (
+                  <span className="h-3.5 w-3.5 rounded border border-slate-300" />
+                )}
               </div>
               {pkg?.code === 'PKG-B' && (
                 <div className="flex items-center justify-between p-1.5 rounded bg-white border border-slate-200">

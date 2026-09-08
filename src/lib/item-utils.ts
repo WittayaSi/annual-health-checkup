@@ -1,3 +1,5 @@
+import { DepartmentItemRule } from './types';
+
 export function resolveItemPrice(name: string, price: number = 0): number {
   if (typeof price === 'number' && price > 0) return price;
   const n = (name || '').toLowerCase();
@@ -43,66 +45,89 @@ export interface DepartmentItemRuleResult {
   isMandatory: boolean;        // บังคับตรวจสำหรับแผนกนี้
   isFree: boolean;             // ตรวจฟรี (0 บาท)
   isHidden: boolean;           // ซ่อนไม่ให้แสดง (สำหรับแผนกอื่นที่ไม่เกี่ยวข้อง)
+  specialPrice?: number | null;
   ruleMessage?: string;        // ข้อความกำกับสิทธิ์
 }
 
 /**
  * Evaluate department-specific rules for specialized test items:
- * 1. Stool Examination (ตรวจอุจจาระ):
- *    - กลุ่มงานโภชนศาสตร์ (Nutrition): บังคับตรวจ (Mandatory) & ฟรี (0฿)
- *    - แผนกอื่นๆ: เลือกตรวจได้ (Optional) & ฟรี (0฿)
- * 2. Methamphetamine Test (ตรวจสารเสพติด / เมทแอมเฟตามีน):
- *    - งานยานพาหนะ / พนักงานขับรถ (Vehicle / Driver): บังคับตรวจ (Mandatory) & ฟรี (0฿)
- *    - แผนกอื่นๆ: ซ่อน/ไม่ต้องตรวจ (Hidden)
+ * Priority 1: Dynamic rules configured in database (`dbRules`)
+ * Priority 2: Intelligent default fallback rules (Stool Exam & Methamphetamine Test)
  */
-export function getDepartmentItemRule(itemName: string, departmentStr: string = ''): DepartmentItemRuleResult {
+export function getDepartmentItemRule(
+  itemName: string,
+  departmentStr: string = '',
+  dbRules?: DepartmentItemRule[]
+): DepartmentItemRuleResult {
   const name = (itemName || '').toLowerCase().trim();
   const dept = (departmentStr || '').toLowerCase().trim();
 
-  const isStool = name.includes('stool') || name.includes('อุจจาระ');
-  const isMeth = name.includes('methamphetamine') || name.includes('สารเสพติด') || name.includes('ยาเสพติด') || name.includes('amphet');
+  // 1. Evaluate Dynamic DB Rules if available
+  // Priority: Specific department match > "ALL" wildcard match
+  if (Array.isArray(dbRules) && dbRules.length > 0) {
+    let specificMatch: DepartmentItemRule | undefined;
+    let allMatch: DepartmentItemRule | undefined;
 
-  // 1. Stool Examination
-  if (isStool) {
-    const isNutritionDept = ['โภชน', 'โภชนาการ', 'อาหาร', 'โรงครัว', 'โภชนศาสตร์'].some((k) => dept.includes(k));
-    if (isNutritionDept) {
-      return {
-        isMandatory: true,
-        isFree: true,
-        isHidden: false,
-        ruleMessage: 'บังคับตรวจประจำกลุ่มงานโภชนศาสตร์ (ฟรีสวัสดิการ)',
-      };
+    for (const r of dbRules) {
+      const rItemName = (r.itemName || '').toLowerCase().trim();
+      const rDeptName = (r.departmentName || '').toLowerCase().trim();
+
+      const isItemMatch = rItemName === name || name.includes(rItemName) || rItemName.includes(name);
+      if (!isItemMatch) continue;
+
+      // Check if this is a specific department match
+      if (rDeptName !== 'all' && dept && (dept === rDeptName || dept.includes(rDeptName) || rDeptName.includes(dept))) {
+        specificMatch = r;
+        break; // Specific match found — highest priority, stop searching
+      }
+
+      // Check if this is an "ALL" wildcard match (fallback)
+      if (rDeptName === 'all' && !allMatch) {
+        allMatch = r;
+      }
     }
-    // Other departments -> Optional & Free
-    return {
-      isMandatory: false,
-      isFree: true,
-      isHidden: false,
-      ruleMessage: 'สิทธิ์ตรวจฟรี (เลือกตรวจตามสมัครใจ)',
-    };
+
+    const matchedRule = specificMatch || allMatch;
+
+    if (matchedRule) {
+      if (matchedRule.ruleType === 'MANDATORY_FREE') {
+        return {
+          isMandatory: true,
+          isFree: true,
+          isHidden: false,
+          ruleMessage: matchedRule.ruleMessage || `บังคับตรวจประจำ${matchedRule.departmentName} (ฟรีสวัสดิการ)`,
+        };
+      }
+      if (matchedRule.ruleType === 'OPTIONAL_FREE') {
+        return {
+          isMandatory: false,
+          isFree: true,
+          isHidden: false,
+          ruleMessage: matchedRule.ruleMessage || 'สิทธิ์ตรวจฟรี (เลือกตรวจตามสมัครใจ)',
+        };
+      }
+      if (matchedRule.ruleType === 'SPECIAL_PRICE') {
+        return {
+          isMandatory: false,
+          isFree: false,
+          isHidden: false,
+          specialPrice: matchedRule.specialPrice,
+          ruleMessage: matchedRule.ruleMessage || `ราคาพิเศษ ฿${matchedRule.specialPrice ?? 0}`,
+        };
+      }
+      if (matchedRule.ruleType === 'HIDDEN') {
+        return {
+          isMandatory: false,
+          isFree: false,
+          isHidden: true,
+          ruleMessage: matchedRule.ruleMessage || 'ไม่ปรับใช้กับแผนกนี้',
+        };
+      }
+    }
   }
 
-  // 2. Methamphetamine Test
-  if (isMeth) {
-    const isVehicleDept = ['ยานพาหนะ', 'พนักงานขับรถ', 'ขับรถ', 'ขนส่ง', 'ยานพาหนะและขนส่ง', 'driver'].some((k) => dept.includes(k));
-    if (isVehicleDept) {
-      return {
-        isMandatory: true,
-        isFree: true,
-        isHidden: false,
-        ruleMessage: 'บังคับตรวจประจำงานยานพาหนะ (ฟรีสวัสดิการ)',
-      };
-    }
-    // Other departments -> Hidden / Excluded
-    return {
-      isMandatory: false,
-      isFree: false,
-      isHidden: true,
-      ruleMessage: 'ไม่ปรับใช้กับแผนกนี้',
-    };
-  }
-
-  // Default for other standard items
+  // 2. No DB rule matched → return neutral defaults (no auto-select, no hide)
+  // All department-specific rules must be configured by Admin via "กติกาเฉพาะแผนก" UI
   return {
     isMandatory: false,
     isFree: false,

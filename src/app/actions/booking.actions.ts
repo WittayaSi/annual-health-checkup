@@ -30,12 +30,13 @@ export async function bookSlotAction(
   packageId?: string,
   notes?: string,
   selectedItems?: { id?: string; name: string; price: number }[],
-  isAdminOverride?: boolean
+  isAdminOverride?: boolean,
+  isPregnant?: boolean
 ) {
   try {
     const activeUser = await getActiveUserAction();
     const isAdmin = activeUser?.role === 'ADMIN' || activeUser?.role === 'SUPER_STAFF' || isAdminOverride === true;
-    const booking = await store.bookSlot(userId, dailySlotId, timeSlotId, packageId, notes, selectedItems, isAdmin);
+    const booking = await store.bookSlot(userId, dailySlotId, timeSlotId, packageId, notes, selectedItems, isAdmin, isPregnant);
 
     try {
       const user = await store.getUserById(userId);

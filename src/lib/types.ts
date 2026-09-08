@@ -25,6 +25,24 @@ export interface Organization {
   createdAt?: string;
 }
 
+export type DepartmentRuleType = 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_PRICE' | 'HIDDEN';
+
+export interface DepartmentItemRule {
+  id: string;
+  departmentName: string;
+  riskGroup?: string | null;
+  itemId?: string | null;
+  itemName: string;
+  ruleType: DepartmentRuleType;
+  specialPrice?: number | null;
+  minAge?: number | null;
+  maxAge?: number | null;
+  gender?: string | null;
+  ruleMessage?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface User {
   id: string;
   employeeCode: string;
@@ -59,6 +77,10 @@ export interface TestItem {
   name: string;      // ชื่อรายการตรวจ
   price: number;     // ราคา (บาท)
   category?: string; // หมวดหมู่ เช่น ตรวจเลือด, ตรวจปัสสาวะ, เอกซเรย์, ตรวจหัวใจ
+  contraindicatedIfPregnant?: boolean; // true = ห้ามตรวจเมื่อตั้งครรภ์ (เช่น X-Ray)
+  targetGender?: 'ALL' | 'MALE' | 'FEMALE'; // ข้อกำหนดเพศ
+  minAge?: number | null;
+  maxAge?: number | null;
 }
 
 export type MasterItem = TestItem;
@@ -134,6 +156,7 @@ export interface Booking {
   pricingMode?: PricingMode;
   totalPrice?: number;
   flatRatePrice?: number | null;
+  isPregnant?: boolean;
   notes?: string;
   reminderSent?: boolean;
   reminderLastAttemptAt?: string | null;

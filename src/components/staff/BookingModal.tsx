@@ -68,13 +68,15 @@ export function BookingModal({
 
   const [selectedLabItems, setSelectedLabItems] = useState<TestItem[]>([]);
   const [calculatedPrice, setCalculatedPrice] = useState<number>(0);
+  const [isPregnant, setIsPregnant] = useState<boolean>(false);
 
   useModalLock(true);
 
-  const handleSelectPackage = (pkgId: string, items?: TestItem[], totalPrice?: number) => {
+  const handleSelectPackage = (pkgId: string, items?: TestItem[], totalPrice?: number, pregnant?: boolean) => {
     setSelectedPackageId(pkgId);
     if (items) setSelectedLabItems(items);
     if (typeof totalPrice === 'number') setCalculatedPrice(totalPrice);
+    if (typeof pregnant === 'boolean') setIsPregnant(pregnant);
   };
 
   const handleConfirm = async () => {
@@ -82,7 +84,8 @@ export function BookingModal({
     setErrorMsg(null);
 
     const itemsSummary = selectedLabItems.map((i) => i.name).join(', ');
-    const fullNotes = `[รายการตรวจที่เลือก: ${itemsSummary || 'ทั้งหมด'}] [ราคารวม: ${calculatedPrice} บาท] ${notes ? `(${notes})` : ''}`.trim();
+    const pregnancyNote = isPregnant ? '[งดรายการข้อห้ามตั้งครรภ์] ' : '';
+    const fullNotes = `[รายการตรวจที่เลือก: ${itemsSummary || 'ทั้งหมด'}] [ราคารวม: ${calculatedPrice} บาท] ${pregnancyNote}${notes ? `(${notes})` : ''}`.trim();
 
     const res = await bookSlotAction(
       activeUser.id,
@@ -90,7 +93,9 @@ export function BookingModal({
       slot.timeSlots?.[0]?.id || `${slot.id}-t1`,
       selectedPackageId,
       fullNotes,
-      selectedLabItems
+      selectedLabItems,
+      false,
+      isPregnant
     );
 
 

@@ -42,6 +42,8 @@ export function AdminItemCatalogDialog({
   const [formName, setFormName] = useState('');
   const [formPrice, setFormPrice] = useState<number | string>('');
   const [formCategory, setFormCategory] = useState('ตรวจเลือด');
+  const [formContraindicatedIfPregnant, setFormContraindicatedIfPregnant] = useState(false);
+  const [formTargetGender, setFormTargetGender] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
 
   // Delete Confirmation State
   const [deletingItem, setDeletingItem] = useState<TestItem | null>(null);
@@ -78,7 +80,7 @@ export function AdminItemCatalogDialog({
 
   if (!isOpen || !mounted) return null;
 
-  const categoriesList = ['ALL', 'ตรวจเลือด', 'ตรวจปัสสาวะ', 'เอกซเรย์', 'หัวใจ', 'ทั่วไป'];
+  const categoriesList = ['ALL', 'ตรวจเลือด', 'ตรวจปัสสาวะ', 'ตรวจอุจจาระ', 'เอกซเรย์', 'หัวใจ', 'ทั่วไป'];
 
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -92,6 +94,8 @@ export function AdminItemCatalogDialog({
     setFormName('');
     setFormPrice('');
     setFormCategory('ตรวจเลือด');
+    setFormContraindicatedIfPregnant(false);
+    setFormTargetGender('ALL');
     setIsAddingNew(true);
     setErrorMsg(null);
   };
@@ -101,6 +105,8 @@ export function AdminItemCatalogDialog({
     setFormName(item.name);
     setFormPrice(item.price !== undefined && item.price !== null ? item.price : '');
     setFormCategory(item.category || 'ตรวจเลือด');
+    setFormContraindicatedIfPregnant(item.contraindicatedIfPregnant || false);
+    setFormTargetGender(item.targetGender || 'ALL');
     setIsAddingNew(true);
     setErrorMsg(null);
   };
@@ -123,6 +129,8 @@ export function AdminItemCatalogDialog({
         name: formName.trim(),
         price: parsedPrice,
         category: formCategory,
+        contraindicatedIfPregnant: formContraindicatedIfPregnant,
+        targetGender: formTargetGender,
       });
 
       if (res.success) {
@@ -140,6 +148,8 @@ export function AdminItemCatalogDialog({
         name: formName.trim(),
         price: parsedPrice,
         category: formCategory,
+        contraindicatedIfPregnant: formContraindicatedIfPregnant,
+        targetGender: formTargetGender,
       });
 
 
@@ -302,20 +312,46 @@ export function AdminItemCatalogDialog({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-slate-500 dark:text-slate-400">หมวด:</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 focus:outline-none"
-                  >
-                    <option value="ตรวจเลือด">ตรวจเลือด</option>
-                    <option value="ตรวจปัสสาวะ">ตรวจปัสสาวะ</option>
-                    <option value="เอกซเรย์">เอกซเรย์</option>
-                    <option value="หัวใจ">หัวใจ</option>
-                    <option value="ทั่วไป">ทั่วไป</option>
-                  </select>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500 dark:text-slate-400">หมวด:</label>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none"
+                    >
+                      <option value="ตรวจเลือด">ตรวจเลือด</option>
+                      <option value="ตรวจปัสสาวะ">ตรวจปัสสาวะ</option>
+                      <option value="ตรวจอุจจาระ">ตรวจอุจจาระ</option>
+                      <option value="เอกซเรย์">เอกซเรย์</option>
+                      <option value="หัวใจ">หัวใจ</option>
+                      <option value="ทั่วไป">ทั่วไป</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500 dark:text-slate-400">กลุ่มเป้าหมาย:</label>
+                    <select
+                      value={formTargetGender}
+                      onChange={(e) => setFormTargetGender(e.target.value as any)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none"
+                    >
+                      <option value="ALL">ทุกเพศ (ALL)</option>
+                      <option value="MALE">เฉพาะชาย (MALE)</option>
+                      <option value="FEMALE">เฉพาะหญิง (FEMALE)</option>
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-pink-700 dark:text-pink-300 select-none">
+                    <input
+                      type="checkbox"
+                      checked={formContraindicatedIfPregnant}
+                      onChange={(e) => setFormContraindicatedIfPregnant(e.target.checked)}
+                      className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-500"
+                    />
+                    <span>🤰 ห้ามตรวจในผู้ตั้งครรภ์ (ยกเว้นรังสี/อันตราย)</span>
+                  </label>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -344,6 +380,7 @@ export function AdminItemCatalogDialog({
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">ชื่อรายการตรวจ</th>
+                  <th className="px-4 py-2.5 font-medium text-center">เงื่อนไขคลินิก</th>
                   <th className="px-4 py-2.5 font-medium text-center">หมวด</th>
                   <th className="px-4 py-2.5 font-medium text-right">ราคา (บาท)</th>
                   <th className="px-4 py-2.5 font-medium text-center w-20"></th>
@@ -352,7 +389,7 @@ export function AdminItemCatalogDialog({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
                       ไม่พบรายการตรวจ
                     </td>
                   </tr>
@@ -364,6 +401,28 @@ export function AdminItemCatalogDialog({
                     >
                       <td className="px-4 py-2.5 text-slate-800 dark:text-slate-200 font-medium">
                         {item.name}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                          {item.contraindicatedIfPregnant && (
+                            <span className="px-1.5 py-0.5 rounded bg-pink-100 dark:bg-pink-950/80 text-pink-700 dark:text-pink-300 text-[10px] font-bold border border-pink-300 dark:border-pink-800">
+                              🤰 ห้ามตรวจถ้าตั้งครรภ์
+                            </span>
+                          )}
+                          {item.targetGender === 'MALE' && (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-300 dark:border-blue-800">
+                              👨 เฉพาะชาย
+                            </span>
+                          )}
+                          {item.targetGender === 'FEMALE' && (
+                            <span className="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-[10px] font-bold border border-purple-300 dark:border-purple-800">
+                              👩 เฉพาะหญิง
+                            </span>
+                          )}
+                          {!item.contraindicatedIfPregnant && item.targetGender === 'ALL' && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span className="inline-block px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">

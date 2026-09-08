@@ -62,9 +62,13 @@ export function AdminExportModal({
 
       // 2. Map data rows with Thai column titles
       const mappedRows = list.map((b, idx) => {
-        const userAge = b.user?.dob ? formatDetailedAge(b.user.dob) : '';
+        const checkupTargetDate = b.dailySlot?.date ? new Date(b.dailySlot.date) : new Date();
+        const userAge = b.user?.dob ? formatDetailedAge(b.user.dob, checkupTargetDate) : '';
         const modeStr = b.pricingMode === 'FREE' ? 'ฟรีสวัสดิการ 100%' : b.pricingMode === 'UPGRADE' ? 'ฟรีสวัสดิการ + ชำระส่วนต่าง' : b.pricingMode === 'FLAT_RATE' ? 'เหมาจ่าย' : 'ชำระเต็มราคา';
         const registeredAt = b.createdAt ? new Date(b.createdAt).toLocaleString('th-TH') : '';
+        const pregnancyStatus = (b.isPregnant || b.notes?.includes('ตั้งครรภ์'))
+          ? 'ตั้งครรภ์ (งดรายการข้อห้าม)'
+          : (b.user?.gender === 'FEMALE' ? 'ไม่ตั้งครรภ์' : '-');
 
         return {
           'ลำดับ': idx + 1,
@@ -73,7 +77,8 @@ export function AdminExportModal({
           'เลขบัตรประชาชน': b.user?.nationalId || '',
           'ชื่อ-นามสกุล': `${b.user?.firstName || ''} ${b.user?.lastName || ''}`.trim(),
           'เพศ': b.user?.gender === 'FEMALE' ? 'หญิง' : 'ชาย',
-          'อายุ (ปี เดือน วัน)': userAge,
+          'สถานะการตั้งครรภ์': pregnancyStatus,
+          'อายุ ณ วันตรวจ (ปี เดือน วัน)': userAge,
           'สังกัดองค์กรหลัก': b.user?.organization || 'โรงพยาบาลท่าสองยาง',
           'แผนก/หน่วยงานย่อย': b.user?.department || '',
           'ตำแหน่ง': b.user?.position || '',
@@ -111,7 +116,8 @@ export function AdminExportModal({
         { wch: 18 }, // เลขบัตรประชาชน
         { wch: 26 }, // ชื่อ-นามสกุล
         { wch: 8 },  // เพศ
-        { wch: 10 }, // อายุ (ปี)
+        { wch: 26 }, // สถานะการตั้งครรภ์
+        { wch: 18 }, // อายุ (ปี เดือน วัน)
         { wch: 26 }, // สังกัดองค์กรหลัก
         { wch: 22 }, // แผนกย่อย
         { wch: 20 }, // ตำแหน่ง
@@ -121,6 +127,7 @@ export function AdminExportModal({
         { wch: 24 }, // รูปแบบสิทธิ์
         { wch: 18 }, // ค่าใช้จ่ายสุทธิ (บาท)
         { wch: 14 }, // สถานะ
+        { wch: 24 }, // เวลาลงทะเบียน
         { wch: 24 }, // หมายเหตุ
       ];
 

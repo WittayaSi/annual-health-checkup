@@ -103,6 +103,18 @@ export async function updateMasterItemAction(...args: Parameters<typeof campaign
 export async function deleteMasterItemAction(...args: Parameters<typeof campaignActions.deleteMasterItemAction>) {
   return await campaignActions.deleteMasterItemAction(...args);
 }
+export async function getDepartmentRulesAction(...args: Parameters<typeof campaignActions.getDepartmentRulesAction>) {
+  return await campaignActions.getDepartmentRulesAction(...args);
+}
+export async function createDepartmentRuleAction(...args: Parameters<typeof campaignActions.createDepartmentRuleAction>) {
+  return await campaignActions.createDepartmentRuleAction(...args);
+}
+export async function updateDepartmentRuleAction(...args: Parameters<typeof campaignActions.updateDepartmentRuleAction>) {
+  return await campaignActions.updateDepartmentRuleAction(...args);
+}
+export async function deleteDepartmentRuleAction(...args: Parameters<typeof campaignActions.deleteDepartmentRuleAction>) {
+  return await campaignActions.deleteDepartmentRuleAction(...args);
+}
 export async function getEntitlementsAction(...args: Parameters<typeof campaignActions.getEntitlementsAction>) {
   return await campaignActions.getEntitlementsAction(...args);
 }

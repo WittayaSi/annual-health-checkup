@@ -31,6 +31,7 @@ import { EditDailySlotDialog } from './EditDailySlotDialog';
 import { AdminCampaignConfigDialog } from './AdminCampaignConfigDialog';
 import { AdminPackageConfigDialog } from './AdminPackageConfigDialog';
 import { AdminItemCatalogDialog } from './AdminItemCatalogDialog';
+import { AdminDepartmentRulesDialog } from './AdminDepartmentRulesDialog';
 import { AdminBatchConfigDialog } from './AdminBatchConfigDialog';
 import { CentralDbSyncDialog } from './CentralDbSyncDialog';
 import { UserRoleManagementDialog } from './UserRoleManagementDialog';
@@ -75,6 +76,7 @@ export function AdminDashboard({
   const [activeTab, setActiveTab] = useState<'SLOTS' | 'ATTENDEES' | 'UNBOOKED' | 'AUDIT'>('SLOTS');
 
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isDeptRulesOpen, setIsDeptRulesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedSlotForBookings, setSelectedSlotForBookings] = useState<DailySlot | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState('ALL');
@@ -117,6 +119,14 @@ export function AdminDashboard({
 
   const allCampaigns = campaigns.length > 0 ? campaigns : [campaign];
   const orgList = organizations.length > 0 ? organizations : [];
+
+  const uniqueDepartments = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach((u) => {
+      if (u.department && u.department.trim()) set.add(u.department.trim());
+    });
+    return Array.from(set).sort();
+  }, [users]);
 
   const campaignSlots = useMemo(() => {
     const rawSlots = selectedCampaignId === 'ALL' ? slots : slots.filter((s) => s.campaignId === selectedCampaignId);
@@ -206,6 +216,14 @@ export function AdminDashboard({
             >
               <FlaskConical className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               <span>Catalog รายการตรวจ</span>
+            </button>
+            <button
+              onClick={() => setIsDeptRulesOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors shadow-xs cursor-pointer"
+              title="กำหนดสิทธิ์ตรวจแล็บเฉพาะกลุ่มเสี่ยง/แผนก"
+            >
+              <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>กติกาเฉพาะแผนก</span>
             </button>
 
             {/* ONLY FULL ADMIN CAN ACCESS ROLE MANAGEMENT & SYSTEM DATA SYNC */}
@@ -740,6 +758,14 @@ export function AdminDashboard({
 
       {/* Catalog Dialog */}
       <AdminItemCatalogDialog isOpen={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} />
+
+      {/* Department Item Rules Dialog */}
+      <AdminDepartmentRulesDialog
+        isOpen={isDeptRulesOpen}
+        onClose={() => setIsDeptRulesOpen(false)}
+        masterItems={masterItems}
+        departments={uniqueDepartments}
+      />
 
       {/* Slot Bookings Modal */}
       {selectedSlotForBookings && (

@@ -103,6 +103,10 @@ export const items = mysqlTable('items', {
   name: varchar('name', { length: 255 }).notNull(),
   price: int('price').default(0).notNull(), // ราคามาตรฐาน (บาท)
   category: varchar('category', { length: 100 }), // เช่น ตรวจเลือด, ตรวจปัสสาวะ, เอกซเรย์
+  contraindicatedIfPregnant: boolean('contraindicated_if_pregnant').default(false).notNull(), // true = ห้ามตรวจเมื่อตั้งครรภ์ (เช่น X-Ray)
+  targetGender: varchar('target_gender', { length: 10 }).default('ALL').notNull(), // 'ALL' | 'MALE' | 'FEMALE'
+  minAge: int('min_age'), // เกณฑ์อายุขั้นต่ำ (ถ้ามี)
+  maxAge: int('max_age'), // เกณฑ์อายุสูงสุด (ถ้ามี)
   createdAt: datetime('created_at').default(new Date()).notNull(),
 });
 
@@ -213,6 +217,7 @@ export const bookings = mysqlTable(
     pricingMode: pricingModeEnum.default('FREE'), // รูปแบบการคิดค่าใช้จ่าย
     totalPrice: int('total_price').default(0).notNull(), // ยอดรวมค่าใช้จ่ายที่ต้องจ่ายจริง
     flatRatePrice: int('flat_rate_price'), // ราคาเหมาจ่าย (ถ้าเป็น FLAT_RATE)
+    isPregnant: boolean('is_pregnant').default(false).notNull(), // true = อยู่ระหว่างตั้งครรภ์ (งดตรวจรังสี X-Ray)
     notes: text('notes'),
     reminderSent: boolean('reminder_sent').default(false).notNull(), // สถานะส่งแจ้งเตือนล่วงหน้า 1 วัน
     reminderLastAttemptAt: datetime('reminder_last_attempt_at'), // เวลาพยายามส่งครั้งล่าสุด (เพื่อพยายามส่งซ้ำทุก 1 ชม.)
@@ -248,6 +253,31 @@ export const auditLogs = mysqlTable('audit_logs', {
   action: varchar('action', { length: 50 }).notNull(),
   details: text('details').notNull(),
 });
+
+// 10. Department Item Rules Table: กำหนดสิทธิ์และเงื่อนไขรายการตรวจย่อยตามแผนก/กลุ่มความเสี่ยง
+export const departmentItemRules = mysqlTable(
+  'department_item_rules',
+  {
+    id: varchar('id', { length: 100 }).primaryKey(),
+    departmentName: varchar('department_name', { length: 100 }).notNull(), // ชื่อแผนก/คีย์เวิร์ด เช่น "กลุ่มงานโภชนศาสตร์", "งานยานพาหนะ", หรือ "ALL"
+    riskGroup: varchar('risk_group', { length: 100 }),                     // กลุ่มความเสี่ยง (ถ้ามี) เช่น "สัมผัสสารเคมี", "สัมผัสรังสี"
+    itemId: varchar('item_id', { length: 100 })                            // อ้างอิงรายการตรวจจากตาราง items
+      .references(() => items.id, { onDelete: 'cascade' }),
+    itemName: varchar('item_name', { length: 255 }).notNull(),             // ชื่อรายการตรวจ เช่น Stool Examination, Methamphetamine Test
+    ruleType: varchar('rule_type', { length: 50 }).notNull(),              // 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_PRICE' | 'HIDDEN'
+    specialPrice: int('special_price').default(0),                         // ราคาคิดจริงหากเลือก SPECIAL_PRICE
+    minAge: int('min_age'),                                                // อายุขั้นต่ำ (ถ้ามี)
+    maxAge: int('max_age'),                                                // อายุสูงสุด (ถ้ามี)
+    gender: varchar('gender', { length: 10 }).default('ALL'),              // 'ALL' | 'MALE' | 'FEMALE'
+    ruleMessage: text('rule_message'),                                     // ข้อความอธิบายสิทธิ์แก่บุคลากร
+    createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  },
+  (table) => ({
+    deptIdx: index('dept_idx').on(table.departmentName),
+    itemIdx: index('item_rule_idx').on(table.itemName),
+  })
+);
 
 // --- DRIZZLE RELATIONS ---
 export const organizationsRelations = relations(organizations, ({ many }) => ({

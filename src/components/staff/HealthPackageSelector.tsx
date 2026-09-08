@@ -8,12 +8,13 @@ import {
   Check,
   Calculator,
   Plus,
+  X,
 } from 'lucide-react';
 
 
-import { resolveItemPrice, isInternalStaffUser, calculateAge, formatDetailedAge, getDepartmentItemRule } from '@/lib/item-utils';
-import { getAllMasterItemsAction, getEntitlementsAction } from '@/app/actions';
-import { OrganizationEntitlement } from '@/lib/types';
+import { resolveItemPrice, isInternalStaffUser, calculateAge, formatDetailedAge, getDepartmentItemRule, detectGender } from '@/lib/item-utils';
+import { getAllMasterItemsAction, getEntitlementsAction, getDepartmentRulesAction } from '@/app/actions';
+import { OrganizationEntitlement, DepartmentItemRule } from '@/lib/types';
 
 interface HealthPackageSelectorProps {
   packages: CheckupPackage[];
@@ -21,7 +22,8 @@ interface HealthPackageSelectorProps {
   selectedPackageId: string;
   initialSelectedItems?: { id?: string; name: string; price?: number }[];
   targetDate?: Date | string;
-  onSelectPackage: (pkgId: string, selectedItems?: TestItem[], totalPrice?: number) => void;
+  initialIsPregnant?: boolean;
+  onSelectPackage: (pkgId: string, selectedItems?: TestItem[], totalPrice?: number, isPregnant?: boolean) => void;
 }
 
 export function HealthPackageSelector({
@@ -30,13 +32,21 @@ export function HealthPackageSelector({
   selectedPackageId,
   initialSelectedItems,
   targetDate,
+  initialIsPregnant = false,
   onSelectPackage,
 }: HealthPackageSelectorProps) {
   // Master Catalog items from MySQL DB strictly
   const [masterCatalogItems, setMasterCatalogItems] = useState<TestItem[]>([]);
   const [entitlements, setEntitlements] = useState<OrganizationEntitlement[]>([]);
+  const [dbDepartmentRules, setDbDepartmentRules] = useState<DepartmentItemRule[]>([]);
   const [selectedExtraItemNames, setSelectedExtraItemNames] = useState<string[]>([]);
   const [hasAppliedInitial, setHasAppliedInitial] = useState(false);
+
+  // Pregnancy screening state (only applicable for female staff)
+  const isFemale = detectGender(user.firstName, user.gender) === 'FEMALE';
+  const [isPregnant, setIsPregnant] = useState<boolean>(initialIsPregnant);
+
+
 
   useEffect(() => {
     getAllMasterItemsAction().then((items) => {
@@ -47,6 +57,11 @@ export function HealthPackageSelector({
     getEntitlementsAction().then((data) => {
       if (data) {
         setEntitlements(data);
+      }
+    });
+    getDepartmentRulesAction().then((rules) => {
+      if (rules) {
+        setDbDepartmentRules(rules);
       }
     });
   }, []);
@@ -97,18 +112,33 @@ export function HealthPackageSelector({
   const isUpgradeMode = isSelectedPkgB && !isPkgBFree && isPkgAFree;
 
 
-  // Helper to extract items directly from Admin-configured package data
+  // Helper to extract items directly from Admin-configured package data and attach master catalog metadata
   const getPkgItems = (pkg: CheckupPackage): TestItem[] => {
-    if (pkg.items && pkg.items.length > 0) {
-      return pkg.items.map((item) => ({
+    const rawItems: TestItem[] = (pkg.items && pkg.items.length > 0)
+      ? pkg.items
+      : (pkg.labTests || []).map((testName) => ({ name: testName, price: resolveItemPrice(testName, 0) }));
+
+    return rawItems.map((item) => {
+      const master = masterCatalogItems.find((m) => m.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+      
+      const lowerName = (item.name || '').toLowerCase();
+      const isXRayOrChest = lowerName.includes('เอกซเรย์') ||
+        lowerName.includes('x-ray') ||
+        lowerName.includes('chest') ||
+        lowerName.includes('pa upright');
+
+      const contraindicatedIfPregnant = master
+        ? (master.contraindicatedIfPregnant || isXRayOrChest)
+        : (item.contraindicatedIfPregnant ?? isXRayOrChest);
+
+      return {
         ...item,
         price: resolveItemPrice(item.name, item.price),
-      }));
-    }
-    return (pkg.labTests || []).map((testName) => ({
-      name: testName,
-      price: resolveItemPrice(testName, 0),
-    }));
+        category: master?.category || item.category,
+        contraindicatedIfPregnant: Boolean(contraindicatedIfPregnant),
+        targetGender: master?.targetGender || item.targetGender || 'ALL',
+      };
+    });
   };
 
   // Extract items of Base Package A to dynamically compare against Package B
@@ -149,23 +179,26 @@ export function HealthPackageSelector({
     }
   });
 
-  // Filter out items that are already in activePkg or hidden by department rules
+  const userGender = detectGender(user.firstName, user.gender);
+
+  // Filter out items that are already in activePkg or hidden by department rules or gender mismatch
   const extraAddOnItems: TestItem[] = Array.from(allAvailableItemsMap.values()).filter((item) => {
     const inActivePkg = activeItemNamesSet.has(item.name.trim().toLowerCase());
     if (inActivePkg) return false;
-    const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+    if (item.targetGender && item.targetGender !== 'ALL' && item.targetGender !== userGender) return false;
+    const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
     return !rule.isHidden;
   });
 
   // Auto-select mandatory department items for user (e.g. Stool Exam for Nutrition, Methamphetamine for Vehicles)
   useEffect(() => {
     extraAddOnItems.forEach((item) => {
-      const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+      const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
       if (rule.isMandatory && !selectedExtraItemNames.includes(item.name)) {
         setSelectedExtraItemNames((prev) => [...prev, item.name]);
       }
     });
-  }, [extraAddOnItems, user.department, user.organization]);
+  }, [extraAddOnItems, user.department, user.organization, dbDepartmentRules]);
 
   // Apply initialSelectedItems when initial data or master catalog items load
   useEffect(() => {
@@ -252,7 +285,11 @@ export function HealthPackageSelector({
     } else if (isPkgAFree) {
       // Free base PKG-A entitlement → UPGRADE mode for PKG-B
       pkgBasePrice = activeItems
-        .filter((item) => selectedItemNames.includes(item.name) && !isIncludedInPkgA(item.name))
+        .filter((item) => 
+          selectedItemNames.includes(item.name) && 
+          !isIncludedInPkgA(item.name) &&
+          !(isFemale && isPregnant && item.contraindicatedIfPregnant)
+        )
         .reduce((sum, item) => sum + (item.price || 0), 0);
     } else {
       // Neither PKG-B nor PKG-A is free in DB → FULL PAY
@@ -269,24 +306,34 @@ export function HealthPackageSelector({
 
   // Extra add-on items price calculation (considering department rule free status)
   const extraItemsPrice = extraAddOnItems
-    .filter((item) => selectedExtraItemNames.includes(item.name))
+    .filter((item) => 
+      selectedExtraItemNames.includes(item.name) &&
+      !(isFemale && isPregnant && item.contraindicatedIfPregnant)
+    )
     .reduce((sum, item) => {
-      const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+      const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
       if (rule.isFree) return sum; // Free entitlement for department/staff
+      if (rule.specialPrice !== null && rule.specialPrice !== undefined) return sum + rule.specialPrice;
       return sum + (item.price || 0);
     }, 0);
 
   const totalPrice = pkgBasePrice + extraItemsPrice;
 
 
-  // Notify parent on state change
+  // Notify parent on state change (filtering out contraindicated items if pregnant)
   useEffect(() => {
-    const selectedPkgItems = activeItems.filter((item) => selectedItemNames.includes(item.name));
-    const selectedExtraItems = extraAddOnItems.filter((item) => selectedExtraItemNames.includes(item.name));
+    let selectedPkgItems = activeItems.filter((item) => selectedItemNames.includes(item.name));
+    let selectedExtraItems = extraAddOnItems.filter((item) => selectedExtraItemNames.includes(item.name));
+
+    if (isFemale && isPregnant) {
+      selectedPkgItems = selectedPkgItems.filter((item) => !item.contraindicatedIfPregnant);
+      selectedExtraItems = selectedExtraItems.filter((item) => !item.contraindicatedIfPregnant);
+    }
+
     const combinedSelectedItems = [...selectedPkgItems, ...selectedExtraItems];
 
-    onSelectPackage(activePkgId, combinedSelectedItems, totalPrice);
-  }, [activePkgId, selectedItemNames, selectedExtraItemNames, totalPrice]);
+    onSelectPackage(activePkgId, combinedSelectedItems, totalPrice, isFemale ? isPregnant : false);
+  }, [activePkgId, selectedItemNames, selectedExtraItemNames, totalPrice, isPregnant, isFemale]);
 
 
   return (
@@ -352,6 +399,31 @@ export function HealthPackageSelector({
             </div>
           )}
         </div>
+
+        {/* Pregnancy Screening Option (Female Staff Only) */}
+        {isFemale && (
+          <div className="mt-3 rounded-xl bg-pink-50 dark:bg-pink-950/40 p-3.5 border border-pink-200 dark:border-pink-900/50 text-pink-900 dark:text-pink-200 space-y-1.5 transition-all">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer font-bold text-xs text-pink-950 dark:text-pink-100 select-none">
+                <input
+                  type="checkbox"
+                  checked={isPregnant}
+                  onChange={(e) => setIsPregnant(e.target.checked)}
+                  className="h-4 w-4 rounded border-pink-300 text-pink-600 focus:ring-pink-500 cursor-pointer"
+                />
+                <span>🤰 อยู่ระหว่างตั้งครรภ์ หรือสงสัยว่าตั้งครรภ์ (Pregnancy Screening)</span>
+              </label>
+              {isPregnant && (
+                <span className="px-2 py-0.5 rounded bg-pink-200 dark:bg-pink-900 text-pink-900 dark:text-pink-100 text-[10px] font-extrabold animate-pulse shrink-0">
+                  งดรายการข้อห้ามอัตโนมัติ
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pl-6">
+              * สำหรับบุคลากรหญิงที่ตั้งครรภ์ ระบบจะยกเว้น/งดรายการตรวจที่มีข้อห้ามสำหรับสตรีมีครรภ์ (เช่น เอกซเรย์ / รังสีวินิจฉัย) อัตโนมัติตามที่ Admin กำหนดไว้ใน Master Catalog
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Lab Checklist Section */}
@@ -397,12 +469,19 @@ export function HealthPackageSelector({
         {/* Checkbox Grid with Scrollable Container */}
         <div className="grid gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
           {activeItems.map((item, idx) => {
-            const isChecked = selectedItemNames.includes(item.name);
-            const canToggle = isSelectedPkgB && isUpgradeMode;
+            const isDisabledByPregnancy = isFemale && isPregnant && !!item.contraindicatedIfPregnant;
+            const isChecked = selectedItemNames.includes(item.name) && !isDisabledByPregnancy;
+            const canToggle = isSelectedPkgB && isUpgradeMode && !isDisabledByPregnancy;
             const inPkgA = isIncludedInPkgA(item.name);
 
             let priceBadge = null;
-            if (isSelectedPkgB) {
+            if (isDisabledByPregnancy) {
+              priceBadge = (
+                <span className="px-2 py-0.5 rounded bg-pink-100 dark:bg-pink-950/80 text-pink-700 dark:text-pink-300 font-bold text-[10px] border border-pink-300 dark:border-pink-800">
+                  🤰 งดตรวจ (ตั้งครรภ์)
+                </span>
+              );
+            } else if (isSelectedPkgB) {
               if (isPkgBFree) {
                 priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-medium">ฟรี (สวัสดิการ)</span>;
               } else if (isPkgAFree) {
@@ -436,7 +515,9 @@ export function HealthPackageSelector({
                   }
                 }}
                 className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors select-none ${
-                  !canToggle
+                  isDisabledByPregnancy
+                    ? 'bg-pink-50/60 dark:bg-pink-950/30 border-pink-200 dark:border-pink-900/50 opacity-80 cursor-not-allowed'
+                    : !canToggle
                     ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 cursor-default'
                     : isChecked
                     ? 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer'
@@ -446,16 +527,23 @@ export function HealthPackageSelector({
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
-                      isChecked
+                      isDisabledByPregnancy
+                        ? 'bg-pink-200 dark:bg-pink-900 border-pink-400 text-pink-700 dark:text-pink-300'
+                        : isChecked
                         ? 'bg-slate-800 dark:bg-slate-200 border-slate-800 dark:border-slate-200 text-white dark:text-slate-900'
                         : 'border-slate-300 bg-white dark:bg-slate-900'
                     }`}
                   >
-                    {isChecked && <Check className="h-3 w-3" />}
+                    {isChecked && !isDisabledByPregnancy && <Check className="h-3 w-3" />}
+                    {isDisabledByPregnancy && <X className="h-3 w-3 text-pink-700 dark:text-pink-300" />}
                   </div>
                   <span
                     className={`text-xs truncate ${
-                      isChecked ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400 line-through'
+                      isDisabledByPregnancy
+                        ? 'text-pink-800 dark:text-pink-300 font-medium line-through'
+                        : isChecked
+                        ? 'text-slate-800 dark:text-slate-200 font-medium'
+                        : 'text-slate-400 line-through'
                     }`}
                   >
                     {item.name}
@@ -508,7 +596,7 @@ export function HealthPackageSelector({
 
               {extraAddOnItems.map((item, idx) => {
                 const isChecked = selectedExtraItemNames.includes(item.name);
-                const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+                const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
                 const isMandatory = rule.isMandatory;
                 const isFree = rule.isFree;
 

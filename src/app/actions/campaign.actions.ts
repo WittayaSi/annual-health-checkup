@@ -163,6 +163,10 @@ export async function createMasterItemAction(data: {
   name: string;
   price: number;
   category?: string;
+  contraindicatedIfPregnant?: boolean;
+  targetGender?: 'ALL' | 'MALE' | 'FEMALE';
+  minAge?: number | null;
+  maxAge?: number | null;
 }) {
   try {
     const item = await store.createMasterItem(data);
@@ -181,6 +185,10 @@ export async function updateMasterItemAction(
     name?: string;
     price?: number;
     category?: string;
+    contraindicatedIfPregnant?: boolean;
+    targetGender?: 'ALL' | 'MALE' | 'FEMALE';
+    minAge?: number | null;
+    maxAge?: number | null;
   }
 ) {
   try {
@@ -202,6 +210,61 @@ export async function deleteMasterItemAction(itemId: string) {
     return { success: true };
   } catch (error: unknown) {
     const message = formatErrorMessage(error, 'เกิดข้อผิดพลาดในการลบรายการตรวจ');
+    return { success: false, error: message };
+  }
+}
+
+// --- Department Rules Server Actions ---
+export async function getDepartmentRulesAction(departmentName?: string) {
+  return await store.getDepartmentRules(departmentName);
+}
+
+export async function createDepartmentRuleAction(data: {
+  departmentName: string;
+  riskGroup?: string;
+  itemId?: string;
+  itemName: string;
+  ruleType: 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_PRICE' | 'HIDDEN';
+  specialPrice?: number;
+  minAge?: number;
+  maxAge?: number;
+  gender?: string;
+  ruleMessage?: string;
+}) {
+  try {
+    const rule = await store.createDepartmentRule(data);
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true, rule };
+  } catch (error: unknown) {
+    const message = formatErrorMessage(error, 'เกิดข้อผิดพลาดในการสร้างสิทธิ์เฉพาะแผนก');
+    return { success: false, error: message };
+  }
+}
+
+export async function updateDepartmentRuleAction(
+  ruleId: string,
+  updates: Parameters<typeof store.updateDepartmentRule>[1]
+) {
+  try {
+    const rule = await store.updateDepartmentRule(ruleId, updates);
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true, rule };
+  } catch (error: unknown) {
+    const message = formatErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขสิทธิ์เฉพาะแผนก');
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteDepartmentRuleAction(ruleId: string) {
+  try {
+    await store.deleteDepartmentRule(ruleId);
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error: unknown) {
+    const message = formatErrorMessage(error, 'เกิดข้อผิดพลาดในการลบสิทธิ์เฉพาะแผนก');
     return { success: false, error: message };
   }
 }

@@ -396,10 +396,17 @@ export function DailyAttendeesView({
                           <p className="font-semibold text-slate-900 dark:text-white text-xs">
                             {u ? `${u.firstName} ${u.lastName}` : 'ผู้รับบริการ'}
                           </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {u?.gender === 'MALE' ? 'ชาย' : u?.gender === 'FEMALE' ? 'หญิง' : '-'}
-                            {u?.dob ? ` • อายุ ${formatDetailedAge(u.dob)}` : ''}
-                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-[11px] text-slate-400">
+                              {u?.gender === 'MALE' ? 'ชาย' : u?.gender === 'FEMALE' ? 'หญิง' : '-'}
+                              {u?.dob ? ` • อายุ ${formatDetailedAge(u.dob)}` : ''}
+                            </span>
+                            {(b.isPregnant || b.notes?.includes('ตั้งครรภ์')) && (
+                              <span className="px-1.5 py-0.5 rounded bg-pink-100 dark:bg-pink-950/80 text-pink-700 dark:text-pink-300 text-[10px] font-bold border border-pink-300 dark:border-pink-800">
+                                🤰 งดรายการข้อห้าม (ตั้งครรภ์)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
