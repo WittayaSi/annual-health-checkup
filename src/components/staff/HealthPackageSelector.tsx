@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 
-import { resolveItemPrice, isInternalStaffUser, calculateAge, formatDetailedAge } from '@/lib/item-utils';
+import { resolveItemPrice, isInternalStaffUser, calculateAge, formatDetailedAge, getDepartmentItemRule } from '@/lib/item-utils';
 import { getAllMasterItemsAction, getEntitlementsAction } from '@/app/actions';
 import { OrganizationEntitlement } from '@/lib/types';
 
@@ -149,10 +149,23 @@ export function HealthPackageSelector({
     }
   });
 
-  // Filter out items that are already in activePkg
-  const extraAddOnItems: TestItem[] = Array.from(allAvailableItemsMap.values()).filter(
-    (item) => !activeItemNamesSet.has(item.name.trim().toLowerCase())
-  );
+  // Filter out items that are already in activePkg or hidden by department rules
+  const extraAddOnItems: TestItem[] = Array.from(allAvailableItemsMap.values()).filter((item) => {
+    const inActivePkg = activeItemNamesSet.has(item.name.trim().toLowerCase());
+    if (inActivePkg) return false;
+    const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+    return !rule.isHidden;
+  });
+
+  // Auto-select mandatory department items for user (e.g. Stool Exam for Nutrition, Methamphetamine for Vehicles)
+  useEffect(() => {
+    extraAddOnItems.forEach((item) => {
+      const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+      if (rule.isMandatory && !selectedExtraItemNames.includes(item.name)) {
+        setSelectedExtraItemNames((prev) => [...prev, item.name]);
+      }
+    });
+  }, [extraAddOnItems, user.department, user.organization]);
 
   // Apply initialSelectedItems when initial data or master catalog items load
   useEffect(() => {
@@ -254,10 +267,14 @@ export function HealthPackageSelector({
     }
   }
 
-  // Extra add-on items price calculation
+  // Extra add-on items price calculation (considering department rule free status)
   const extraItemsPrice = extraAddOnItems
     .filter((item) => selectedExtraItemNames.includes(item.name))
-    .reduce((sum, item) => sum + (item.price || 0), 0);
+    .reduce((sum, item) => {
+      const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+      if (rule.isFree) return sum; // Free entitlement for department/staff
+      return sum + (item.price || 0);
+    }, 0);
 
   const totalPrice = pkgBasePrice + extraItemsPrice;
 
@@ -491,37 +508,60 @@ export function HealthPackageSelector({
 
               {extraAddOnItems.map((item, idx) => {
                 const isChecked = selectedExtraItemNames.includes(item.name);
+                const rule = getDepartmentItemRule(item.name, user.department || user.organization);
+                const isMandatory = rule.isMandatory;
+                const isFree = rule.isFree;
+
                 return (
                   <label
                     key={idx}
-                    onClick={() => toggleExtraItem(item.name)}
-                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors select-none cursor-pointer ${
-                      isChecked
-                        ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    onClick={() => {
+                      if (!isMandatory) {
+                        toggleExtraItem(item.name);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors select-none ${
+                      isMandatory
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 cursor-not-allowed'
+                        : isChecked
+                        ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 cursor-pointer'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
                           isChecked
-                            ? 'bg-amber-600 text-white border-amber-600'
+                            ? isMandatory
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-amber-600 text-white border-amber-600'
                             : 'border-slate-300 bg-white dark:bg-slate-900'
                         }`}
                       >
                         {isChecked && <Check className="h-3 w-3" />}
                       </div>
-                      <span
-                        className={`text-xs truncate ${
-                          isChecked ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {item.name}
-                      </span>
+                      <div className="min-w-0">
+                        <span
+                          className={`text-xs truncate block ${
+                            isChecked ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {item.name}
+                        </span>
+                        {rule.ruleMessage && (
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-300 block font-medium">
+                            {rule.ruleMessage}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <span className="text-xs shrink-0 ml-2 font-mono font-semibold text-amber-600 dark:text-amber-400">
-                      +{item.price > 0 ? `${item.price} ฿` : '0 ฿'}
+                    <span className="text-xs shrink-0 ml-2 font-mono font-semibold">
+                      {isFree ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">ฟรี (0 ฿)</span>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400">+{item.price > 0 ? `${item.price} ฿` : '0 ฿'}</span>
+                      )}
                     </span>
                   </label>
                 );
