@@ -185,3 +185,43 @@ export interface AuditLog {
     | 'IMPORT_USERS';
   details: string;
 }
+
+export type HealthItemStatusColor = 'NORMAL' | 'WARNING' | 'CRITICAL';
+
+export interface HealthCheckupItem {
+  id: string;
+  recordId?: string;
+  itemName: string;
+  category: string;
+  value: string;
+  unit?: string | null;
+  referenceRange?: string | null;
+  statusColor: HealthItemStatusColor;
+  note?: string | null;
+}
+
+export interface HealthCheckupRecord {
+  id: string;
+  userId: string;
+  hn?: string | null;
+  year: number;
+  checkupDate: string;
+  hospitalName: string;
+  packageCode?: string | null;
+  overallDoctorSummary?: string | null;
+  recommendations?: string | null;
+  xrayResult?: string | null;
+  ekgResult?: string | null;
+  status: string;
+  items: HealthCheckupItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HealthTrendPoint {
+  year: number;
+  checkupDate: string;
+  value: number;
+  unit: string;
+  statusColor: HealthItemStatusColor;
+}

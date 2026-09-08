@@ -159,3 +159,12 @@ export async function toggleMaintenanceModeAction(...args: Parameters<typeof adm
 export async function getMaintenanceModeAction(...args: Parameters<typeof adminActions.getMaintenanceModeAction>) {
   return await adminActions.getMaintenanceModeAction(...args);
 }
+
+// --- History Actions ---
+import * as historyActions from './actions/history.actions';
+export async function getUserHealthHistoryAction(...args: Parameters<typeof historyActions.getUserHealthHistoryAction>) {
+  return await historyActions.getUserHealthHistoryAction(...args);
+}
+export async function syncUserHisDataAction(...args: Parameters<typeof historyActions.syncUserHisDataAction>) {
+  return await historyActions.syncUserHisDataAction(...args);
+}

@@ -30,12 +30,18 @@ export const pricingModeEnum = mysqlEnum('pricing_mode', [
 // --- TABLES ---
 
 // 0. Organizations Table: ข้อมูลสังกัดองค์กร Master (เช่น โรงพยาบาลท่าสองยาง, สสอ.ท่าสองยาง, โรงเรียนต่างๆ)
-export const organizations = mysqlTable('organizations', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull().unique(),
-  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
-  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
-});
+export const organizations = mysqlTable(
+  'organizations',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').default(new Date()).$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  },
+  (table) => ({
+    nameUnq: unique('name').on(table.name),
+  })
+);
 
 // 0.1 Organization Entitlements Table: สิทธิ์ Package ตรวจฟรีตามองค์กร + เงื่อนไขอายุ
 export const organizationEntitlements = mysqlTable('organization_entitlements', {
@@ -81,42 +87,42 @@ export const users = mysqlTable('users', {
   isActive: boolean('is_active').default(true).notNull(),
 
   lastSyncedAt: datetime('last_synced_at'),
-  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
-  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime('updated_at').default(new Date()).$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
 });
 
 // 2. Packages Table: โปรแกรมตรวจสุขภาพประจำปี
 export const checkupPackages = mysqlTable('packages', {
-  id: varchar('id', { length: 100 }).primaryKey(),
+  id: varchar('id', { length: 36 }).primaryKey(),
   code: varchar('code', { length: 20 }).notNull().unique(), // เช่น PKG-A
   name: varchar('name', { length: 255 }).notNull(),
   targetGroup: varchar('target_group', { length: 255 }).notNull(),
   description: text('description').notNull(),
   labTestsJson: text('lab_tests_json').notNull(), // JSON Array ของรายการเจาะเลือด/เอกซเรย์
   preparationGuide: text('preparation_guide'), // คำแนะนำการเตรียมตัวก่อนตรวจ
-  createdAt: datetime('created_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
 });
 
 // 2.1 Items Master Catalog Table: ตารางหลักเก็บรายการตรวจสุขภาพย่อยของโรงพยาบาล (Master Catalog)
 export const items = mysqlTable('items', {
-  id: varchar('id', { length: 100 }).primaryKey(),
+  id: varchar('id', { length: 36 }).primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   price: int('price').default(0).notNull(), // ราคามาตรฐาน (บาท)
   category: varchar('category', { length: 100 }), // เช่น ตรวจเลือด, ตรวจปัสสาวะ, เอกซเรย์
-  createdAt: datetime('created_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
 });
 
 // 2.2 Package Items Junction Table: ตารางเชื่อมโยง Package กับ Items
 export const packageItems = mysqlTable('package_items', {
-  id: varchar('id', { length: 100 }).primaryKey(),
-  packageId: varchar('package_id', { length: 100 })
+  id: varchar('id', { length: 36 }).primaryKey(),
+  packageId: varchar('package_id', { length: 36 })
     .notNull()
     .references(() => checkupPackages.id, { onDelete: 'cascade' }),
-  itemId: varchar('item_id', { length: 100 })
+  itemId: varchar('item_id', { length: 36 })
     .notNull()
     .references(() => items.id, { onDelete: 'cascade' }),
   customPrice: int('custom_price'), // ราคาพิเศษเฉพาะ Package (ถ้ามี)
-  createdAt: datetime('created_at').default(new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
 });
 
 // 3. Campaigns Table: รอบการตรวจสุขภาพประจำปี
@@ -135,8 +141,8 @@ export const campaigns = mysqlTable('campaigns', {
   eligibleStartworkCutoffDate: date('eligible_startwork_cutoff_date', { mode: 'string' }), // วันที่เริ่มบรรจุ/เข้าทำงานวันสุดท้ายที่มีสิทธิ์ (เช่น "2026-04-01")
   isActive: boolean('is_active').default(false).notNull(),
   announcement: text('announcement'),
-  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
-  updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
+  updatedAt: datetime('updated_at').default(new Date()).$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
 });
 
 // 4. Daily Slots Table: สล็อตประจำวัน (FOREIGN KEY -> campaigns.id)
@@ -152,8 +158,8 @@ export const dailySlots = mysqlTable(
     bookedCount: int('booked_count').default(0).notNull(),
     isHoliday: boolean('is_holiday').default(false).notNull(),
     holidayNote: varchar('holiday_note', { length: 255 }),
-    createdAt: datetime('created_at').default(new Date()).notNull(),
-    updatedAt: datetime('updated_at').default(new Date()).notNull(),
+    createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').default(new Date()).$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
   },
   (table) => ({
     unqCampaignDate: unique('unq_campaign_date').on(table.campaignId, table.date),
@@ -216,8 +222,8 @@ export const bookings = mysqlTable(
     notes: text('notes'),
     reminderSent: boolean('reminder_sent').default(false).notNull(), // สถานะส่งแจ้งเตือนล่วงหน้า 1 วัน
     reminderLastAttemptAt: datetime('reminder_last_attempt_at'), // เวลาพยายามส่งครั้งล่าสุด (เพื่อพยายามส่งซ้ำทุก 1 ชม.)
-    createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
-    updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+    createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').default(new Date()).$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
   },
   (table) => ({
     userCampaignIdx: index('user_campaign_idx').on(table.userId, table.campaignId),
@@ -236,18 +242,67 @@ export const bookingItems = mysqlTable('booking_items', {
   price: int('price').default(0).notNull(),                             // ราคามาตรฐานของรายการ
   chargedPrice: int('charged_price').default(0).notNull(),              // ราคาที่คิดจริง (0 = ฟรีตามสิทธิ์)
   isCoveredByEntitlement: boolean('is_covered_by_entitlement').default(false).notNull(), // รายการนี้อยู่ในสิทธิ์ฟรีหรือไม่
-  createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+  createdAt: datetime('created_at').default(new Date()).$defaultFn(() => new Date()).notNull(),
 });
 
 // 9. Audit Logs Table: บันทึกประวัติการทำรายการเพื่อการตรวจสอบ
 export const auditLogs = mysqlTable('audit_logs', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  timestamp: datetime('timestamp').$defaultFn(() => new Date()).notNull(),
+  timestamp: datetime('timestamp').default(new Date()).$defaultFn(() => new Date()).notNull(),
   actorId: varchar('actor_id', { length: 36 }).notNull(),
   actorName: varchar('actor_name', { length: 100 }).notNull(),
   action: varchar('action', { length: 50 }).notNull(),
   details: text('details').notNull(),
 });
+
+// 10. Health Checkup Records Table: คลังประวัติผลตรวจสุขภาพย้อนหลังรายปีจาก HIS
+export const healthCheckupRecords = mysqlTable(
+  'health_checkup_records',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    hn: varchar('hn', { length: 50 }),
+    year: int('year').notNull(),
+    checkupDate: date('checkup_date', { mode: 'string' }).notNull(),
+    hospitalName: varchar('hospital_name', { length: 255 }).default('โรงพยาบาลท่าสองยาง'),
+    packageCode: varchar('package_code', { length: 50 }),
+    overallDoctorSummary: text('overall_doctor_summary'),
+    recommendations: text('recommendations'),
+    xrayResult: text('xray_result'),
+    ekgResult: text('ekg_result'),
+    status: varchar('status', { length: 50 }).default('COMPLETED').notNull(),
+    createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+    updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
+  },
+  (table) => ({
+    userYearIdx: index('user_year_idx').on(table.userId, table.year),
+    hnIdx: index('hn_idx').on(table.hn),
+  })
+);
+
+// 11. Health Checkup Items Table: รายการผลตรวจย่อย (Lab, X-Ray, EKG, Physical Exam)
+export const healthCheckupItems = mysqlTable(
+  'health_checkup_items',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    recordId: varchar('record_id', { length: 36 })
+      .notNull()
+      .references(() => healthCheckupRecords.id, { onDelete: 'cascade' }),
+    itemName: varchar('item_name', { length: 255 }).notNull(),
+    category: varchar('category', { length: 100 }).default('ทั่วไป').notNull(),
+    value: varchar('value', { length: 100 }).notNull(),
+    unit: varchar('unit', { length: 50 }),
+    referenceRange: varchar('reference_range', { length: 100 }),
+    statusColor: varchar('status_color', { length: 20 }).default('NORMAL').notNull(), // NORMAL (🟢) | WARNING (🟡) | CRITICAL (🔴)
+    note: text('note'),
+    createdAt: datetime('created_at').$defaultFn(() => new Date()).notNull(),
+  },
+  (table) => ({
+    recordIdx: index('record_idx').on(table.recordId),
+  })
+);
 
 // --- DRIZZLE RELATIONS ---
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -348,5 +403,20 @@ export const bookingItemsRelations = relations(bookingItems, ({ one }) => ({
   item: one(items, {
     fields: [bookingItems.itemId],
     references: [items.id],
+  }),
+}));
+
+export const healthCheckupRecordsRelations = relations(healthCheckupRecords, ({ one, many }) => ({
+  user: one(users, {
+    fields: [healthCheckupRecords.userId],
+    references: [users.id],
+  }),
+  items: many(healthCheckupItems),
+}));
+
+export const healthCheckupItemsRelations = relations(healthCheckupItems, ({ one }) => ({
+  record: one(healthCheckupRecords, {
+    fields: [healthCheckupItems.recordId],
+    references: [healthCheckupRecords.id],
   }),
 }));

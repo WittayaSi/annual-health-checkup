@@ -71,7 +71,6 @@ export async function fetchHosOfficeStaff(): Promise<HosOfficePersonRow[]> {
         COALESCE(ds.HR_DEPARTMENT_SUB_NAME, d.HR_DEPARTMENT_NAME, 'กลุ่มงานทั่วไป') AS department,
         COALESCE(pos.HR_POSITION_NAME, p.POSITION_IN_WORK, 'เจ้าหน้าที่') AS position,
         p.HR_PHONE AS phone,
-        CONCAT('HN-', p.ID) AS hisSyncId,
         COALESCE(p.HR_STATUS_ID, '01') AS hrStatusId,
         COALESCE(p.HR_PASSWORD, '') AS passwordRaw,
         DATE_FORMAT(p.HR_STARTWORK_DATE, '%Y-%m-%d') AS startworkDateRaw,
@@ -103,7 +102,7 @@ export async function fetchHosOfficeStaff(): Promise<HosOfficePersonRow[]> {
         department: String(r.department || 'กลุ่มงานทั่วไป'),
         position: String(r.position || 'เจ้าหน้าที่'),
         phone: r.phone ? String(r.phone) : undefined,
-        hisSyncId: String(r.hisSyncId || `HN-${r.employeeCode}`),
+        hisSyncId: '', // HN will be resolved directly from HIS DB by National ID (CID)
         hrStatusId: statusId,
         isActive,
         password: r.passwordRaw ? String(r.passwordRaw).trim() : undefined,

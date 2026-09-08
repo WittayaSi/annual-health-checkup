@@ -78,7 +78,7 @@ export function AdminDashboard({
   const [selectedSlotForBookings, setSelectedSlotForBookings] = useState<DailySlot | null>(null);
   const [selectedCampaignId, setSelectedCampaignId] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'full' | 'available' | 'holiday'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'available' | 'full' | 'holiday'>('open');
 
   const [isSendingReminders, setIsSendingReminders] = useState(false);
   const [reminderResultMsg, setReminderResultMsg] = useState<string | null>(null);
@@ -118,8 +118,12 @@ export function AdminDashboard({
   const orgList = organizations.length > 0 ? organizations : [];
 
   const campaignSlots = useMemo(() => {
-    if (selectedCampaignId === 'ALL') return slots;
-    return slots.filter((s) => s.campaignId === selectedCampaignId);
+    const rawSlots = selectedCampaignId === 'ALL' ? slots : slots.filter((s) => s.campaignId === selectedCampaignId);
+    // Filter out weekend days (Saturday = 6, Sunday = 0) so admin table displays weekdays only
+    return rawSlots.filter((slot) => {
+      const day = new Date(slot.date + 'T00:00:00').getDay();
+      return day !== 0 && day !== 6;
+    });
   }, [slots, selectedCampaignId]);
 
   // Dashboard Stats Calculations
@@ -151,11 +155,11 @@ export function AdminDashboard({
         if (!dateMatch && !noteMatch) return false;
       }
 
+      if (statusFilter === 'open' || statusFilter === 'available') return !slot.isHoliday;
       if (statusFilter === 'holiday') return slot.isHoliday;
       if (statusFilter === 'full') return !slot.isHoliday && slot.bookedCount >= slot.quota;
-      if (statusFilter === 'available') return !slot.isHoliday && slot.bookedCount < slot.quota;
 
-      return true;
+      return true; // 'all' shows all weekdays
     });
   }, [campaignSlots, searchTerm, statusFilter]);
 
@@ -436,22 +440,27 @@ export function AdminDashboard({
                 </div>
 
                 {/* Filter Buttons */}
-                <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-xs border border-slate-200 dark:border-slate-700">
-                  {(['all', 'available', 'full', 'holiday'] as const).map((f) => {
-                    const labels = { all: 'ทั้งหมด', available: 'ว่าง', full: 'เต็ม', holiday: 'หยุด' };
-                    return (
-                      <button
-                        key={f}
-                        onClick={() => setStatusFilter(f)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === f
-                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                          }`}
-                      >
-                        {labels[f]}
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs border border-slate-200 dark:border-slate-700">
+                  {(
+                    [
+                      { id: 'open', label: '🟢 เฉพาะเปิดรับจอง' },
+                      { id: 'all', label: '📋 แสดงทั้งหมด' },
+                      { id: 'full', label: '🔴 คิวเต็ม' },
+                      { id: 'holiday', label: '🏖️ วันหยุด' },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setStatusFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        statusFilter === f.id || (statusFilter === 'available' && f.id === 'open')
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
+                          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

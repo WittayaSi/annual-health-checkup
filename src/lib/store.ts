@@ -40,6 +40,7 @@ import {
   TestItem,
   OrganizationEntitlement,
   PricingMode,
+  HealthCheckupRecord,
 } from './types';
 import { fetchHosOfficeStaff } from '@/db/hosoffice';
 import { resolveItemPrice, detectGender, isInternalStaffUser } from './item-utils';
@@ -2189,6 +2190,71 @@ export const store = {
       });
     } catch (err) {
       console.error('Failed to insert audit log:', err);
+    }
+  },
+
+  // --- Health Checkup Records History & Trends (MySQL schema.healthCheckupRecords & healthCheckupItems) ---
+  async getUserHealthHistory(userId: string): Promise<HealthCheckupRecord[]> {
+    if (!db) return [];
+    try {
+      const user = await this.getUserById(userId);
+      if (!user) return [];
+
+      let records = await db
+        .select()
+        .from(schema.healthCheckupRecords)
+        .where(eq(schema.healthCheckupRecords.userId, userId))
+        .orderBy(desc(schema.healthCheckupRecords.year));
+
+      // Auto-sync if records are not yet cached
+      if (records.length === 0) {
+        const { syncUserHisHealthCheckupData } = await import('@/lib/his-sync');
+        await syncUserHisHealthCheckupData(user);
+        records = await db
+          .select()
+          .from(schema.healthCheckupRecords)
+          .where(eq(schema.healthCheckupRecords.userId, userId))
+          .orderBy(desc(schema.healthCheckupRecords.year));
+      }
+
+      const allItems = await db.select().from(schema.healthCheckupItems);
+
+      return records.map((r) => {
+        const items = allItems
+          .filter((i) => i.recordId === r.id)
+          .map((i) => ({
+            id: i.id,
+            recordId: i.recordId,
+            itemName: i.itemName,
+            category: i.category,
+            value: i.value,
+            unit: i.unit,
+            referenceRange: i.referenceRange,
+            statusColor: i.statusColor as any,
+            note: i.note,
+          }));
+
+        return {
+          id: r.id,
+          userId: r.userId,
+          hn: r.hn,
+          year: r.year,
+          checkupDate: r.checkupDate,
+          hospitalName: r.hospitalName || 'โรงพยาบาลท่าสองยาง',
+          packageCode: r.packageCode,
+          overallDoctorSummary: r.overallDoctorSummary,
+          recommendations: r.recommendations,
+          xrayResult: r.xrayResult,
+          ekgResult: r.ekgResult,
+          status: r.status,
+          items,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        };
+      });
+    } catch (err) {
+      console.error('Error fetching user health history:', err);
+      return [];
     }
   },
 };
