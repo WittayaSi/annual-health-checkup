@@ -15,9 +15,10 @@ import { updateUserRoleAction } from '@/app/actions';
 
 interface UserRoleManagementDialogProps {
   users?: UserType[];
+  onSuccess?: () => void;
 }
 
-export function UserRoleManagementDialog({ users = [] }: UserRoleManagementDialogProps) {
+export function UserRoleManagementDialog({ users = [], onSuccess }: UserRoleManagementDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
