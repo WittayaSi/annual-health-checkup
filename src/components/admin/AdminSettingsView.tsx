@@ -55,7 +55,7 @@ export function AdminSettingsView() {
   }, [users]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* PAGE HEADER */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -143,7 +143,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
                   <Building2 className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {organizations.length} สังกัด
                 </span>
               </div>
@@ -170,7 +170,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
                   <Sliders className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {packages.length} แพ็กเกจ
                 </span>
               </div>
@@ -197,7 +197,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
                   <FolderOpen className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {campaigns.length} โครงการ
                 </span>
               </div>
@@ -239,7 +239,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
                   <Package className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   Package A / B
                 </span>
               </div>
@@ -262,7 +262,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400">
                   <FlaskConical className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {masterItems.length} รายการ
                 </span>
               </div>
@@ -291,7 +291,7 @@ export function AdminSettingsView() {
                 <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
                   <Building2 className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   กติกาเฉพาะแผนก
                 </span>
               </div>
@@ -315,16 +315,16 @@ export function AdminSettingsView() {
         </div>
       </div>
 
-      {/* SECTION 3: สิทธิ์ผู้ใช้งาน & ระบบกลาว (FULL ADMIN ONLY) */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            3. การจัดการสิทธิ์ผู้ใช้ & การซิงค์ฐานข้อมูล (เฉพาะ Admin)
-          </h2>
-        </div>
+      {/* SECTION 3: สิทธิ์ผู้ใช้งาน & ระบบกลาง (FULL ADMIN ONLY) */}
+      {isFullAdmin && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              3. การจัดการสิทธิ์ผู้ใช้ & การซิงค์ฐานข้อมูล (เฉพาะ Admin)
+            </h2>
+          </div>
 
-        {isFullAdmin ? (
           <div className="grid gap-4 md:grid-cols-2">
             {/* User Roles Management Card */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col justify-between space-y-4">
@@ -333,7 +333,7 @@ export function AdminSettingsView() {
                   <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-bold text-rose-600 dark:text-rose-400 font-mono">
+                  <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
                     Admin Access
                   </span>
                 </div>
@@ -356,7 +356,7 @@ export function AdminSettingsView() {
                   <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
                     <Database className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-bold text-sky-600 dark:text-sky-400 font-mono">
+                  <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">
                     HIS / Central DB
                   </span>
                 </div>
@@ -372,18 +372,8 @@ export function AdminSettingsView() {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-5 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div>
-              <p className="font-bold">จำกัดการเข้าถึงส่วนจัดการสิทธิ์</p>
-              <p className="mt-0.5 text-amber-700 dark:text-amber-400">
-                บัญชีของคุณมีสิทธิ์เป็น <span className="font-bold">SUPER_STAFF</span> สามารถกำหนดและตั้งค่ารายการตรวจ/โครงการได้ แต่ไม่สามารถเปลี่ยนสิทธิ์ผู้ใช้หรือสั่งซิงค์ฐานข้อมูลกลางได้
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* DIALOG PORTALS FOR CATALOG AND DEPARTMENT RULES */}
       {isCatalogOpen && (

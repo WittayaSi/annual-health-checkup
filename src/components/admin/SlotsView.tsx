@@ -47,16 +47,34 @@ export function SlotsView() {
   const remainingQuota = Math.max(0, totalQuota - totalBooked);
   const occupancyRate = totalQuota > 0 ? ((totalBooked / totalQuota) * 100).toFixed(1) : '0';
 
+  const selectedCampaign = useMemo(() => {
+    if (selectedCampaignId === 'ALL') return null;
+    return campaigns.find((c) => c.id === selectedCampaignId) || null;
+  }, [campaigns, selectedCampaignId]);
+
+  const activeStaffUsers = useMemo(() => {
+    const filtered = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
+    if (!selectedCampaign || !selectedCampaign.organization || selectedCampaign.organization === 'ทั้งหมด') {
+      return filtered;
+    }
+    const targetOrg = selectedCampaign.organization.trim().toLowerCase();
+    return filtered.filter((u) => {
+      const uOrg = (u.organization || '').trim().toLowerCase();
+      const uDept = (u.department || '').trim().toLowerCase();
+      return uOrg === targetOrg || uDept === targetOrg;
+    });
+  }, [users, selectedCampaign]);
+
   const confirmedBookings = useMemo(() => {
     return selectedCampaignId === 'ALL'
       ? bookings.filter((b) => b.status === 'CONFIRMED')
-      : bookings.filter((b) => b.status === 'CONFIRMED' && (b.campaignId === selectedCampaignId || !b.campaignId));
+      : bookings.filter((b) => b.status === 'CONFIRMED' && b.campaignId === selectedCampaignId);
   }, [bookings, selectedCampaignId]);
 
   const pkgACount = confirmedBookings.filter((b) => b.packageId === 'pkg-a' || b.package?.code === 'PKG-A').length;
   const pkgBCount = confirmedBookings.filter((b) => b.packageId === 'pkg-b' || b.package?.code === 'PKG-B').length;
 
-  const activeStaffCount = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin').length;
+  const activeStaffCount = activeStaffUsers.length;
   const bookedUserIds = new Set(confirmedBookings.map((b) => b.userId));
   const bookedStaffCount = bookedUserIds.size;
   const bookingRate = activeStaffCount > 0 ? ((bookedStaffCount / activeStaffCount) * 100).toFixed(1) : '0';
@@ -137,20 +155,39 @@ export function SlotsView() {
           </div>
         </div>
 
-        {/* Occupancy Rate */}
+        {/* Occupancy & Staff Booking Rate */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs hover-lift">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pb-1">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">อัตราการจองเต็ม</span>
             <Percent className="h-4 w-4 text-purple-500" />
           </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
-            {occupancyRate}%
-          </p>
 
-          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
+          <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+            <div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">ต่อที่นั่ง (Quota)</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+                {occupancyRate}%
+              </p>
+              <p className="text-[10px] text-slate-400">
+                ({totalBooked}/{totalQuota} คิว)
+              </p>
+            </div>
+            <div className="border-l border-slate-100 dark:border-slate-800 pl-3">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">ต่อเจ้าหน้าที่</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {bookingRate}%
+              </p>
+              <p className="text-[10px] text-slate-400">
+                ({bookedStaffCount}/{activeStaffCount} คน)
+              </p>
+            </div>
+          </div>
+
+          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full mt-2.5 overflow-hidden flex gap-1">
             <div
               className="bg-purple-500 h-full rounded-full transition-all"
-              style={{ width: `${occupancyRate}%` }}
+              style={{ width: `${Math.min(100, Number(occupancyRate))}%` }}
+              title={`ต่อที่นั่ง: ${occupancyRate}%`}
             />
           </div>
         </div>
