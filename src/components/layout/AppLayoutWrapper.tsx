@@ -23,8 +23,9 @@ export function AppLayoutWrapper({
   const pathname = usePathname();
   const isMaintenancePage = pathname === '/maintenance';
   const isLandingPage = pathname === '/';
+  const isAdminPage = pathname.startsWith('/admin');
 
-  if (isMaintenancePage) {
+  if (isMaintenancePage || isAdminPage) {
     return <>{children}</>;
   }
 

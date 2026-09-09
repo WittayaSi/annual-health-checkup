@@ -4,10 +4,10 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: var(--font-prompt), 'Prompt', var(--font-sarabun), 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: var(--font-prompt), 'Prompt', sans-serif;
-  --font-display: var(--font-outfit), 'Outfit', var(--font-prompt), 'Prompt', sans-serif;
-  --font-thai: var(--font-sarabun), 'Sarabun', var(--font-prompt), 'Prompt', sans-serif;
+  --font-sans: 'Prompt', 'Sarabun', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Prompt', sans-serif;
+  --font-display: 'Outfit', 'Prompt', sans-serif;
+  --font-thai: 'Sarabun', 'Prompt', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
@@ -34,12 +34,11 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: 'Prompt', 'Sarabun', system-ui, sans-serif;
   background-color: var(--background);
   color: var(--foreground);
   transition: background-color 0.25s ease, color 0.25s ease;
   overflow-x: hidden;
-  letter-spacing: -0.01em;
 }
 
 html.modal-open,
