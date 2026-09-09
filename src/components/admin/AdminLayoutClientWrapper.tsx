@@ -107,18 +107,28 @@ export function AdminLayoutClientWrapper({
     return campaigns.find((c) => c.id === selectedCampaignId) || campaign;
   }, [selectedCampaignId, campaigns, campaign]);
 
-  // Filter staff users (excluding system admin accounts)
+  // Filter staff users (excluding system admin accounts and matching selected campaign target org if specified)
   const activeStaffUsers = useMemo(() => {
-    return users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
-  }, [users]);
+    const filtered = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
+    if (selectedCampaignId === 'ALL') return filtered;
+
+    const selectedCamp = campaigns.find((c) => c.id === selectedCampaignId);
+    if (!selectedCamp || !selectedCamp.organization || selectedCamp.organization === 'ทั้งหมด') {
+      return filtered;
+    }
+    const targetOrg = selectedCamp.organization.trim().toLowerCase();
+    return filtered.filter((u) => {
+      const uOrg = (u.organization || '').trim().toLowerCase();
+      const uDept = (u.department || '').trim().toLowerCase();
+      return uOrg === targetOrg || uDept === targetOrg;
+    });
+  }, [users, selectedCampaignId, campaigns]);
 
   // Valid bookings for selected campaign
   const confirmedBookings = useMemo(() => {
     return selectedCampaignId === 'ALL'
       ? bookings.filter((b) => b.status === 'CONFIRMED')
-      : bookings.filter(
-          (b) => b.status === 'CONFIRMED' && (b.campaignId === selectedCampaignId || !b.campaignId)
-        );
+      : bookings.filter((b) => b.status === 'CONFIRMED' && b.campaignId === selectedCampaignId);
   }, [bookings, selectedCampaignId]);
 
   const bookedUserIds = useMemo(() => new Set(confirmedBookings.map((b) => b.userId)), [confirmedBookings]);
@@ -160,6 +170,8 @@ export function AdminLayoutClientWrapper({
     onRefresh: handleRefresh,
   };
 
+  const isSettingsOrSystemPage = pathname === '/admin/settings' || pathname === '/admin/audit';
+
   return (
     <AdminContext.Provider value={contextValue}>
       <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 flex font-sans">
@@ -174,29 +186,35 @@ export function AdminLayoutClientWrapper({
               <div className="hidden sm:flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                  {activeCampaign.name}
+                  {isSettingsOrSystemPage
+                    ? 'ตั้งค่าระบบส่วนกลาง & ประวัติทำรายการ'
+                    : selectedCampaignId === 'ALL'
+                    ? 'ข้อมูลรวมทุกโครงการ'
+                    : activeCampaign.name}
                 </span>
               </div>
             </div>
 
             {/* TOP HEADER ACTIONS & DIALOG TRIGGERS */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Campaign Filter Dropdown */}
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl text-xs border border-slate-200 dark:border-slate-700">
-                <FolderOpen className="h-3.5 w-3.5 text-slate-500" />
-                <select
-                  value={selectedCampaignId}
-                  onChange={(e) => setSelectedCampaignId(e.target.value)}
-                  className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="ALL">รวมทุกโครงการ ({allCampaigns.length})</option>
-                  {allCampaigns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.year})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Campaign Filter Dropdown - Hidden on Settings & Audit pages */}
+              {!isSettingsOrSystemPage && (
+                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 rounded-xl text-xs border border-slate-200 dark:border-slate-700">
+                  <FolderOpen className="h-3.5 w-3.5 text-slate-500" />
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    <option value="ALL">รวมทุกโครงการ ({allCampaigns.length})</option>
+                    {allCampaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.year})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* 1-Day Reminder Button */}
               <button

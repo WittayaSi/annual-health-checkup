@@ -61,16 +61,31 @@ export function UnbookedStaffView({
   // Admin book modal state
   const [targetUserForBooking, setTargetUserForBooking] = useState<User | null>(null);
 
-  // Active staff users list (excluding only technical system account sys_admin)
+  // Selected campaign object
+  const selectedCampaign = useMemo(() => {
+    if (selectedCampaignId === 'ALL') return null;
+    return campaigns.find((c) => c.id === selectedCampaignId) || null;
+  }, [campaigns, selectedCampaignId]);
+
+  // Active staff users list (excluding technical system account sys_admin and matching campaign target org if specified)
   const activeUsers = useMemo(() => {
-    return users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
-  }, [users]);
+    const filtered = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
+    if (!selectedCampaign || !selectedCampaign.organization || selectedCampaign.organization === 'ทั้งหมด') {
+      return filtered;
+    }
+    const targetOrg = selectedCampaign.organization.trim().toLowerCase();
+    return filtered.filter((u) => {
+      const uOrg = (u.organization || '').trim().toLowerCase();
+      const uDept = (u.department || '').trim().toLowerCase();
+      return uOrg === targetOrg || uDept === targetOrg;
+    });
+  }, [users, selectedCampaign]);
 
   // Booked user IDs for the selected campaign
   const bookedUserIds = useMemo(() => {
     const validBookings = selectedCampaignId === 'ALL'
       ? bookings.filter((b) => b.status === 'CONFIRMED')
-      : bookings.filter((b) => b.status === 'CONFIRMED' && (b.campaignId === selectedCampaignId || !b.campaignId));
+      : bookings.filter((b) => b.status === 'CONFIRMED' && b.campaignId === selectedCampaignId);
     return new Set(validBookings.map((b) => b.userId));
   }, [bookings, selectedCampaignId]);
 

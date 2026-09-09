@@ -59,6 +59,32 @@ export interface DeptStatSummary {
   percentage: number;
 }
 
+/**
+ * Helper to determine department/organization grouping key.
+ * If user belongs to an external organization without sub-departments (or department equals org name / is generic),
+ * group them under the Organization name directly as a consolidated row.
+ */
+export function getDeptOrOrgGroupKey(u: User): string {
+  const dept = (u.department || '').trim();
+  const org = (u.organization || '').trim();
+
+  const isGenericDept = !dept || dept === 'ไม่ระบุแผนก' || dept === 'ไม่มีแผนก' || dept === '-';
+
+  if (!isGenericDept && dept.toLowerCase() !== org.toLowerCase()) {
+    return dept;
+  }
+
+  if (org && org !== 'ไม่ระบุองค์กร' && org !== '-') {
+    return org;
+  }
+
+  if (dept) {
+    return dept;
+  }
+
+  return 'ไม่ระบุแผนก/หน่วยงาน';
+}
+
 export function DepartmentReportsView({
   users,
   bookings,
@@ -84,16 +110,31 @@ export function DepartmentReportsView({
   const [targetUserForBooking, setTargetUserForBooking] = useState<User | null>(null);
   const [targetBookingForReschedule, setTargetBookingForReschedule] = useState<BookingWithDetails | null>(null);
 
-  // Filter active staff users (excluding only technical system account sys_admin)
+  // Selected campaign object
+  const selectedCampaign = useMemo(() => {
+    if (selectedCampaignId === 'ALL') return null;
+    return campaigns.find((c) => c.id === selectedCampaignId) || null;
+  }, [campaigns, selectedCampaignId]);
+
+  // Filter active staff users (excluding technical system account sys_admin and matching campaign target org if specified)
   const activeUsers = useMemo(() => {
-    return users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
-  }, [users]);
+    const filtered = users.filter((u) => u.isActive !== false && u.username !== 'sys_admin');
+    if (!selectedCampaign || !selectedCampaign.organization || selectedCampaign.organization === 'ทั้งหมด') {
+      return filtered;
+    }
+    const targetOrg = selectedCampaign.organization.trim().toLowerCase();
+    return filtered.filter((u) => {
+      const uOrg = (u.organization || '').trim().toLowerCase();
+      const uDept = (u.department || '').trim().toLowerCase();
+      return uOrg === targetOrg || uDept === targetOrg;
+    });
+  }, [users, selectedCampaign]);
 
   // Valid bookings for selected campaign
   const campaignBookings = useMemo(() => {
     return selectedCampaignId === 'ALL'
       ? bookings.filter((b) => b.status === 'CONFIRMED')
-      : bookings.filter((b) => b.status === 'CONFIRMED' && (b.campaignId === selectedCampaignId || !b.campaignId));
+      : bookings.filter((b) => b.status === 'CONFIRMED' && b.campaignId === selectedCampaignId);
   }, [bookings, selectedCampaignId]);
 
   // Map of userId -> BookingWithDetails
@@ -107,16 +148,16 @@ export function DepartmentReportsView({
     return map;
   }, [campaignBookings]);
 
-  // Group stats by department
+  // Group stats by department / organization
   const deptStatsList = useMemo<DeptStatSummary[]>(() => {
     const map = new Map<string, { total: number; booked: number }>();
 
     activeUsers.forEach((u) => {
-      const dName = (u.department || 'ไม่ระบุแผนก').trim();
-      if (!map.has(dName)) {
-        map.set(dName, { total: 0, booked: 0 });
+      const gKey = getDeptOrOrgGroupKey(u);
+      if (!map.has(gKey)) {
+        map.set(gKey, { total: 0, booked: 0 });
       }
-      const entry = map.get(dName)!;
+      const entry = map.get(gKey)!;
       entry.total += 1;
       if (bookingByUserIdMap.has(u.id)) {
         entry.booked += 1;
@@ -124,10 +165,10 @@ export function DepartmentReportsView({
     });
 
     const result: DeptStatSummary[] = [];
-    map.forEach((val, dName) => {
+    map.forEach((val, gKey) => {
       const percentage = val.total > 0 ? Number(((val.booked / val.total) * 100).toFixed(1)) : 0;
       result.push({
-        deptName: dName,
+        deptName: gKey,
         totalUsers: val.total,
         bookedUsersCount: val.booked,
         unbookedUsersCount: val.total - val.booked,
@@ -135,7 +176,7 @@ export function DepartmentReportsView({
       });
     });
 
-    // Sort by department name (or percentage ascending to highlight low progress)
+    // Sort by department/organization name
     return result.sort((a, b) => a.deptName.localeCompare(b.deptName, 'th'));
   }, [activeUsers, bookingByUserIdMap]);
 
@@ -155,10 +196,10 @@ export function DepartmentReportsView({
   const completedDeptsCount = deptStatsList.filter((d) => d.percentage === 100).length;
   const criticalDeptsCount = deptStatsList.filter((d) => d.percentage < 50).length;
 
-  // Selected Department Staff List
+  // Selected Department / Organization Staff List
   const selectedDeptUsers = useMemo(() => {
     if (!selectedDept) return [];
-    return activeUsers.filter((u) => (u.department || 'ไม่ระบุแผนก').trim() === selectedDept);
+    return activeUsers.filter((u) => getDeptOrOrgGroupKey(u) === selectedDept);
   }, [activeUsers, selectedDept]);
 
   // Filtered Staff List for selected department

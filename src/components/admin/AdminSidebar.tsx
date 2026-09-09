@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { logoutAction } from '@/app/actions';
 import {
   CalendarCheck2,
   Users,
@@ -35,9 +36,22 @@ export function AdminSidebar({
   unbookedCount = 0,
   criticalDeptCount = 0,
 }: AdminSidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logoutAction();
+      router.push('/');
+      router.refresh();
+    } catch {
+      setIsLoggingOut(false);
+    }
+  };
 
   const isFullAdmin = activeUser?.role === 'ADMIN';
 
@@ -281,8 +295,8 @@ export function AdminSidebar({
           ))}
         </div>
 
-        {/* SIDEBAR FOOTER (QUICK LINKS) */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-1">
+        {/* SIDEBAR FOOTER (QUICK LINKS & LOGOUT) */}
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-1.5">
           <Link
             href="/booking"
             className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
@@ -290,6 +304,17 @@ export function AdminSidebar({
             <Stethoscope className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             {!isCollapsed && <span>ไปหน้าจองคิวบุคลากร</span>}
           </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/80 dark:border-rose-900/40 transition-colors disabled:opacity-50 cursor-pointer"
+            title={isCollapsed ? 'ออกจากระบบ' : undefined}
+          >
+            <LogOut className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            {!isCollapsed && <span>{isLoggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ'}</span>}
+          </button>
         </div>
       </aside>
     </>

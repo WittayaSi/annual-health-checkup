@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Calendar,
   Users,
@@ -67,6 +67,17 @@ export function DailyAttendeesView({
     return today;
   });
 
+  // Reset selectedDate if current selectedDate does not exist in new activeSlots
+  useEffect(() => {
+    if (selectedDate === 'ALL') return;
+    if (activeSlots.length > 0) {
+      const exists = activeSlots.some((s) => s.date === selectedDate);
+      if (!exists) {
+        setSelectedDate(activeSlots[0].date);
+      }
+    }
+  }, [activeSlots, selectedDate]);
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPackage, setSelectedPackage] = useState<string>('ALL');
@@ -79,6 +90,9 @@ export function DailyAttendeesView({
 
   // Get all bookings for selected date, sorted chronologically by createdAt (created_at)
   const dayBookings = useMemo(() => {
+    if (selectedDate === 'ALL') {
+      return [...bookings].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
     return bookings
       .filter((b) => {
         if (b.dailySlot?.date === selectedDate) return true;
@@ -139,6 +153,7 @@ export function DailyAttendeesView({
 
   // Format date display in Thai
   const formattedDateThai = useMemo(() => {
+    if (selectedDate === 'ALL') return `แสดงรายชื่อผู้เข้าตรวจทุกวัน (รวมทั้งสิ้น ${bookings.length} คน)`;
     if (!selectedDate) return '-';
     const [y, m, d] = selectedDate.split('-').map(Number);
     const dateObj = new Date(y, m - 1, d);
@@ -148,10 +163,14 @@ export function DailyAttendeesView({
     ];
     const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
     return `วัน${days[dateObj.getDay()]}ที่ ${d} ${thaiMonths[m - 1]} ${y + 543}`;
-  }, [selectedDate]);
+  }, [selectedDate, bookings.length]);
 
   // Date Navigation Handlers
   const handlePrevDate = () => {
+    if (selectedDate === 'ALL') {
+      if (activeSlots.length > 0) setSelectedDate(activeSlots[0].date);
+      return;
+    }
     const currentIndex = activeSlots.findIndex((s) => s.date === selectedDate);
     if (currentIndex > 0) {
       setSelectedDate(activeSlots[currentIndex - 1].date);
@@ -159,6 +178,10 @@ export function DailyAttendeesView({
   };
 
   const handleNextDate = () => {
+    if (selectedDate === 'ALL') {
+      if (activeSlots.length > 0) setSelectedDate(activeSlots[0].date);
+      return;
+    }
     const currentIndex = activeSlots.findIndex((s) => s.date === selectedDate);
     if (currentIndex >= 0 && currentIndex < activeSlots.length - 1) {
       setSelectedDate(activeSlots[currentIndex + 1].date);
@@ -259,7 +282,7 @@ export function DailyAttendeesView({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevDate}
-              disabled={activeSlots.findIndex((s) => s.date === selectedDate) <= 0}
+              disabled={selectedDate === 'ALL' || activeSlots.findIndex((s) => s.date === selectedDate) <= 0}
               className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-colors"
               title="วันก่อนหน้า"
             >
@@ -270,8 +293,11 @@ export function DailyAttendeesView({
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full sm:w-64 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
+                className="w-full sm:w-72 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
               >
+                <option value="ALL">
+                  📅 แสดงทุกวัน (รวมทั้งสิ้น {bookings.length} รายการ)
+                </option>
                 {activeSlots.map((s) => {
                   const count = bookings.filter((b) => b.dailySlot?.date === s.date || b.dailySlotId === s.id).length;
                   return (
@@ -285,7 +311,7 @@ export function DailyAttendeesView({
 
             <button
               onClick={handleNextDate}
-              disabled={activeSlots.findIndex((s) => s.date === selectedDate) >= activeSlots.length - 1}
+              disabled={selectedDate === 'ALL' || activeSlots.findIndex((s) => s.date === selectedDate) >= activeSlots.length - 1}
               className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-colors"
               title="วันถัดไป"
             >
@@ -397,6 +423,11 @@ export function DailyAttendeesView({
                             {u ? `${u.firstName} ${u.lastName}` : 'ผู้รับบริการ'}
                           </p>
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {selectedDate === 'ALL' && b.dailySlot?.date && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                                📅 {formatThaiDate(b.dailySlot.date, 'with-day')}
+                              </span>
+                            )}
                             <span className="text-[11px] text-slate-400">
                               {u?.gender === 'MALE' ? 'ชาย' : u?.gender === 'FEMALE' ? 'หญิง' : '-'}
                               {u?.dob ? ` • อายุ ${formatDetailedAge(u.dob)}` : ''}
