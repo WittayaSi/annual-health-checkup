@@ -18,6 +18,7 @@ export async function getBookingsAction() {
 }
 
 import { getActiveUserAction } from './user.actions';
+import { getBookingOpenAction } from './admin.actions';
 
 export async function getUserBookingAction(userId: string) {
   return await store.getUserBooking(userId);
@@ -36,6 +37,12 @@ export async function bookSlotAction(
   try {
     const activeUser = await getActiveUserAction();
     const isAdmin = activeUser?.role === 'ADMIN' || activeUser?.role === 'SUPER_STAFF' || isAdminOverride === true;
+    const isBookingOpen = await getBookingOpenAction();
+
+    if (!isBookingOpen && !isAdmin) {
+      return { success: false, error: 'ขณะนี้ระบบปิดรับการจองคิวชั่วคราว' };
+    }
+
     const booking = await store.bookSlot(userId, dailySlotId, timeSlotId, packageId, notes, selectedItems, isAdmin, isPregnant);
 
     try {
@@ -132,6 +139,14 @@ export async function rescheduleBookingAction(
   isPregnant?: boolean
 ) {
   try {
+    const activeUser = await getActiveUserAction();
+    const isAdmin = activeUser?.role === 'ADMIN' || activeUser?.role === 'SUPER_STAFF';
+    const isBookingOpen = await getBookingOpenAction();
+
+    if (!isBookingOpen && !isAdmin) {
+      return { success: false, error: 'ขณะนี้ระบบปิดรับการย้ายวันตรวจชั่วคราว' };
+    }
+
     const bookingsList = await store.getBookings();
     const oldBooking = bookingsList.find((b) => b.id === bookingId);
     const oldDateStr = oldBooking?.dailySlot?.date;

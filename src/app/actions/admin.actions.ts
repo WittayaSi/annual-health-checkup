@@ -428,14 +428,56 @@ export async function getMaintenanceModeAction() {
   const cookieStore = await cookies();
   const envMaintenance = process.env.MAINTENANCE_MODE;
 
-  // If MAINTENANCE_MODE=false is explicitly set at runtime, turn off maintenance unless overridden by cookie
+  // 1. If MAINTENANCE_MODE=false in .env.local, force maintenance mode OFF
   if (envMaintenance === 'false') {
-    return cookieStore.get('maintenance_mode')?.value === 'true';
+    return false;
+  }
+
+  // 2. If MAINTENANCE_MODE=true in .env.local, force maintenance mode ON
+  if (envMaintenance === 'true') {
+    return true;
   }
 
   return (
-    envMaintenance === 'true' ||
     process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true' ||
     cookieStore.get('maintenance_mode')?.value === 'true'
   );
+}
+
+export async function toggleBookingOpenAction(isOpen: boolean) {
+  try {
+    const activeUser = await store.getActiveUser();
+    if (activeUser?.role !== 'ADMIN') {
+      return { success: false, error: 'เฉพาะผู้ดูแลระบบ (ADMIN) เท่านั้นที่สามารถสลับเปิด/ปิดระบบจองได้' };
+    }
+
+    const cookieStore = await cookies();
+    if (!isOpen) {
+      cookieStore.set('booking_closed', 'true', { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false });
+    } else {
+      cookieStore.delete('booking_closed');
+    }
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/booking');
+    return { success: true, isOpen };
+  } catch (err: unknown) {
+    const errorMsg = formatErrorMessage(err, 'เกิดข้อผิดพลาดในการสลับเปิด/ปิดระบบจอง');
+    return { success: false, error: errorMsg };
+  }
+}
+
+export async function getBookingOpenAction() {
+  const cookieStore = await cookies();
+  const envBooking = process.env.ALLOW_BOOKING;
+
+  if (envBooking === 'false') {
+    return false;
+  }
+
+  if (cookieStore.get('booking_closed')?.value === 'true') {
+    return false;
+  }
+
+  return true;
 }

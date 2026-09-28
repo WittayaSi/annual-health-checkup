@@ -6,15 +6,18 @@ import {
   getUserBookingAction,
   getPackagesAction,
   getMaintenanceModeAction,
+  getBookingOpenAction,
+  getEntitlementsAction,
 } from '@/app/actions';
 import { CurrentBookingCard } from '@/components/staff/CurrentBookingCard';
 import { BookingCalendar } from '@/components/staff/BookingCalendar';
-import { CalendarCheck2, ShieldCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
+import { CalendarCheck2, ShieldCheck, CheckCircle2, AlertTriangle, Lock } from 'lucide-react';
+import { calculateAge, formatDetailedAge, isInternalStaffUser } from '@/lib/item-utils';
 
 export default async function BookingPage() {
   const activeUser = await getActiveUserAction();
   const isMaintenanceMode = await getMaintenanceModeAction();
+  const isBookingOpen = await getBookingOpenAction();
 
   if (isMaintenanceMode) {
     redirect('/maintenance');
@@ -38,8 +41,69 @@ export default async function BookingPage() {
     activeUser.startworkDate && activeUser.startworkDate >= '2026-04-01'
   );
 
+  // Determine user organization entitlement dynamically
+  const userOrgName = (activeUser.organization || activeUser.department || '').trim();
+  const entitlements = await getEntitlementsAction(userOrgName);
+  const isInternalStaff = isInternalStaffUser(activeUser);
+
+  const matchingEntitlements = entitlements.filter((e) => {
+    const eOrg = (e.organizationName || '').toLowerCase().trim();
+    const uOrg = userOrgName.toLowerCase();
+    if (!eOrg || !uOrg) return false;
+    if (eOrg === uOrg) return true;
+    if (isInternalStaff && (eOrg.includes('โรงพยาบาลท่าสองยาง') || eOrg.includes('รพ.ท่าสองยาง'))) {
+      return true;
+    }
+    return false;
+  });
+
+  const targetPkgCode = isSeniorEligible ? 'PKG-B' : 'PKG-A';
+  const targetPkgName = isSeniorEligible ? 'PKG-B ตรวจชุดใหญ่' : 'PKG-A ตรวจชุดมาตรฐาน';
+
+  const userEntitlement = matchingEntitlements.find((e) => {
+    const codeUpper = (e.packageCode || e.packageId || '').toUpperCase();
+    const targetUpper = targetPkgCode.toUpperCase();
+    const isMatch = codeUpper.includes(targetUpper) || targetUpper.includes(codeUpper);
+    if (!isMatch) return false;
+    const minOk = e.minAge == null || userAge >= e.minAge;
+    const maxOk = e.maxAge == null || userAge <= e.maxAge;
+    return minOk && maxOk;
+  });
+
+  let entitlementText = '';
+  if (matchingEntitlements.length === 0) {
+    entitlementText = 'รายการตรวจธรรมดา (ไม่มีแพ็กเกจประจำองค์กร — เลือกตรวจรายรายการ)';
+  } else if (userEntitlement) {
+    if (userEntitlement.isFree) {
+      entitlementText = `${targetPkgName} (ฟรี)`;
+    } else if (userEntitlement.flatPrice != null) {
+      entitlementText = `${targetPkgName} (เหมาจ่าย ฿${userEntitlement.flatPrice.toLocaleString()} บาท)`;
+    } else {
+      entitlementText = `${targetPkgName} (ชำระตามอัตราปกติ)`;
+    }
+  } else {
+    entitlementText = `${targetPkgName} (ชำระตามอัตราปกติ)`;
+  }
+
   return (
     <div className="space-y-6">
+      {/* Booking Closed Warning Banner */}
+      {!isBookingOpen && (
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-5 backdrop-blur-md shadow-lg flex items-start gap-4 text-amber-800 dark:text-amber-200">
+          <div className="p-3 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+            <Lock className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-bold text-base text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <span>ขณะนี้ระบบปิดรับการจองคิวชั่วคราว (Booking Closed)</span>
+            </h3>
+            <p className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+              ระบบปิดรับการจองคิวใหม่หรือย้ายวันตรวจชั่วคราว บุคลากรยังคงสามารถเข้าดูข้อมูลสิทธิ์ ประวัติการจอง หรือตารางรอบวันตรวจได้ตามปกติ
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Staff Greeting Banner */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -66,8 +130,8 @@ export default async function BookingPage() {
               <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0" />
               <span>
                 สิทธิ์สวัสดิการของคุณ (อายุ {detailedAgeStr}):{' '}
-                <strong className="text-slate-900 dark:text-white font-medium">
-                  {isSeniorEligible ? 'PKG-B ตรวจชุดใหญ่ (ฟรี)' : 'PKG-A ตรวจชุดมาตรฐาน (ฟรี)'}
+                <strong className="text-slate-900 dark:text-white font-semibold">
+                  {entitlementText}
                 </strong>
               </span>
             </div>
@@ -139,11 +203,13 @@ export default async function BookingPage() {
               <span>ปฏิทินเลือกวันเข้ารับการตรวจสุขภาพ</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              เลือกวันที่มีสถานะ &quot;เปิดรับจอง&quot; เพื่อยืนยันการจองคิว
+              {isBookingOpen
+                ? 'เลือกวันที่มีสถานะ "เปิดรับจอง" เพื่อยืนยันการจองคิว'
+                : 'ขณะนี้ระบบปิดรับการจองคิว (สามารถดูตารางรอบวันตรวจได้)'}
             </p>
           </div>
 
-          <BookingCalendar slots={slots} activeUser={activeUser} packages={packages} campaign={campaign} />
+          <BookingCalendar slots={slots} activeUser={activeUser} packages={packages} campaign={campaign} readOnly={!isBookingOpen} />
         </section>
       )}
     </div>

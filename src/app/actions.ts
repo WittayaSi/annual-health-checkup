@@ -171,3 +171,9 @@ export async function toggleMaintenanceModeAction(...args: Parameters<typeof adm
 export async function getMaintenanceModeAction(...args: Parameters<typeof adminActions.getMaintenanceModeAction>) {
   return await adminActions.getMaintenanceModeAction(...args);
 }
+export async function toggleBookingOpenAction(...args: Parameters<typeof adminActions.toggleBookingOpenAction>) {
+  return await adminActions.toggleBookingOpenAction(...args);
+}
+export async function getBookingOpenAction(...args: Parameters<typeof adminActions.getBookingOpenAction>) {
+  return await adminActions.getBookingOpenAction(...args);
+}
