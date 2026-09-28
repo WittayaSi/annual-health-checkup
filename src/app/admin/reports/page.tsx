@@ -143,15 +143,21 @@ export default function AdminReportsHubPage() {
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'สรุปภาพรวมตามหน่วยงาน');
     }
 
-    // 2. Detailed Sheet (รายละเอียดตั้งเบิกรายบุคคล)
+    // 2. Detailed Sheet (รายละเอียดตั้งเบิกรายบุคคล - เฉพาะผู้ที่มีชำระส่วนต่าง/ซื้อเพิ่ม)
     if (mode === 'detailed' || mode === 'all') {
-      const detailedRows = confirmedBookings.map((b, idx) => {
+      const upgradeBookings = confirmedBookings.filter((b) => b.totalPrice && b.totalPrice > 0);
+
+      if (mode === 'detailed' && upgradeBookings.length === 0) {
+        alert('ไม่พบข้อมูลผู้รับการตรวจที่มีการชำระส่วนต่างหรือซื้อเพิ่มในระบบ');
+        return;
+      }
+
+      const detailedRows = upgradeBookings.map((b, idx) => {
         const fullName = getUserFullNameWithPrefix(b.user);
         const pkgName = b.package?.name || 'แพ็กเกจหลัก';
         const addOnItems = b.items && b.items.length > 0
           ? b.items.map((it: any) => it.name || it.itemName).join(', ')
           : '-';
-        const isFree = !b.totalPrice || b.totalPrice === 0;
 
         return {
           'ลำดับ': idx + 1,
@@ -161,7 +167,6 @@ export default function AdminReportsHubPage() {
           'แผนก/กลุ่มงาน': b.user?.department || '-',
           'แพ็กเกจหลัก': pkgName,
           'รายการอัปเกรด/ซื้อเพิ่ม': addOnItems,
-          'ประเภทสิทธิ์': isFree ? 'ฟรีสวัสดิการ 100%' : 'มีชำระส่วนต่าง',
           'ยอดชำระส่วนต่าง (บาท)': b.totalPrice || 0,
           'วันที่เข้าตรวจ': b.dailySlot?.date || '-',
           'รอบเวลา': b.timeSlot ? `${b.timeSlot.startTime}-${b.timeSlot.endTime}` : '-',
@@ -179,14 +184,13 @@ export default function AdminReportsHubPage() {
         { wch: 22 }, // แผนก
         { wch: 28 }, // แพ็กเกจหลัก
         { wch: 35 }, // รายการอัปเกรด
-        { wch: 18 }, // ประเภทสิทธิ์
         { wch: 20 }, // ยอดชำระส่วนต่าง
         { wch: 15 }, // วันที่เข้าตรวจ
         { wch: 14 }, // รอบเวลา
-        { wch: 14 }, // สถานะการตรวจ
+        { wch: 18 }, // สถานะการจอง
         { wch: 20 }, // หมายเหตุ
       ];
-      XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'รายละเอียดรายบุคคล');
+      XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'รายชื่อชำระส่วนต่างรายบุคคล');
     }
 
     const fileNameSuffix = mode === 'summary' ? 'summary' : mode === 'detailed' ? 'individual' : 'full';
