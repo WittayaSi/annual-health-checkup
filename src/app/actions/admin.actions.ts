@@ -426,9 +426,16 @@ export async function toggleMaintenanceModeAction(isMaintenance: boolean) {
 
 export async function getMaintenanceModeAction() {
   const cookieStore = await cookies();
+  const envMaintenance = process.env.MAINTENANCE_MODE;
+
+  // If MAINTENANCE_MODE=false is explicitly set at runtime, turn off maintenance unless overridden by cookie
+  if (envMaintenance === 'false') {
+    return cookieStore.get('maintenance_mode')?.value === 'true';
+  }
+
   return (
+    envMaintenance === 'true' ||
     process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true' ||
-    process.env.MAINTENANCE_MODE === 'true' ||
     cookieStore.get('maintenance_mode')?.value === 'true'
   );
 }

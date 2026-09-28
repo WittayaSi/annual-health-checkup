@@ -31,7 +31,7 @@ export function AppLayoutWrapper({
     return <>{children}</>;
   }
 
-  const isMaintenanceEnv = isMaintenance || process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
+  const isMaintenanceEnv = isMaintenance;
 
   if (isMaintenanceEnv && pathname !== '/admin') {
     return <MaintenanceNotice activeUser={activeUser} allUsers={allUsers} />;
