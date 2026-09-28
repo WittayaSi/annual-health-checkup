@@ -12,6 +12,7 @@ interface AppLayoutWrapperProps {
   activeUser: User | null;
   allUsers: User[];
   campaign?: Campaign;
+  isMaintenance?: boolean;
 }
 
 export function AppLayoutWrapper({
@@ -19,6 +20,7 @@ export function AppLayoutWrapper({
   activeUser,
   allUsers,
   campaign,
+  isMaintenance = false,
 }: AppLayoutWrapperProps) {
   const pathname = usePathname();
   const isMaintenancePage = pathname === '/maintenance';
@@ -29,7 +31,7 @@ export function AppLayoutWrapper({
     return <>{children}</>;
   }
 
-  const isMaintenanceEnv = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true' || process.env.MAINTENANCE_MODE === 'true';
+  const isMaintenanceEnv = isMaintenance || process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
 
   if (isMaintenanceEnv && pathname !== '/admin') {
     return <MaintenanceNotice activeUser={activeUser} allUsers={allUsers} />;

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Prompt, Sarabun, Outfit } from 'next/font/google';
 import './globals.css';
 import { AppLayoutWrapper } from '@/components/layout/AppLayoutWrapper';
-import { getActiveUserAction, getAllUsersAction, getCampaignAction } from '@/app/actions';
+import { getActiveUserAction, getAllUsersAction, getCampaignAction, getMaintenanceModeAction } from '@/app/actions';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { initAutoReminderScheduler } from '@/lib/auto-scheduler';
 
@@ -59,12 +59,13 @@ export default async function RootLayout({
   const activeUser = await getActiveUserAction();
   const allUsers = await getAllUsersAction();
   const campaign = await getCampaignAction();
+  const isMaintenance = await getMaintenanceModeAction();
 
   return (
     <html lang="th" className={`h-full scroll-smooth ${prompt.variable} ${sarabun.variable} ${outfit.variable}`} data-scroll-behavior="smooth">
       <body className={`${prompt.className} flex min-h-full flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300`}>
         <ThemeProvider>
-          <AppLayoutWrapper activeUser={activeUser} allUsers={allUsers} campaign={campaign}>
+          <AppLayoutWrapper activeUser={activeUser} allUsers={allUsers} campaign={campaign} isMaintenance={isMaintenance}>
             {children}
           </AppLayoutWrapper>
         </ThemeProvider>

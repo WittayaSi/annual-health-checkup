@@ -425,5 +425,10 @@ export async function toggleMaintenanceModeAction(isMaintenance: boolean) {
 }
 
 export async function getMaintenanceModeAction() {
-  return process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true' || process.env.MAINTENANCE_MODE === 'true';
+  const cookieStore = await cookies();
+  return (
+    process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true' ||
+    process.env.MAINTENANCE_MODE === 'true' ||
+    cookieStore.get('maintenance_mode')?.value === 'true'
+  );
 }
