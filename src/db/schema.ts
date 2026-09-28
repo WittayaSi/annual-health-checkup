@@ -59,6 +59,7 @@ export const users = mysqlTable('users', {
   nationalId: varchar('national_id', { length: 20 }), // เลขบัตรประชาชน
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
+  preName: varchar('pre_name', { length: 50 }), // คำนำหน้าชื่อ (ดึงจาก hr_prefix ใน HOSOffice เช่น นาย, นางสาว, นาง, นพ., พญ.)
   gender: genderEnum.default('MALE'),
   dob: date('dob'),
   organization: varchar('organization', { length: 255 })

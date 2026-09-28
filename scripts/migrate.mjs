@@ -91,6 +91,23 @@ async function migrate() {
       }
     }
 
+    // 4. Users Table Columns
+    const userCols = [
+      { name: 'pre_name', type: 'varchar(50) NULL' },
+    ];
+    for (const col of userCols) {
+      try {
+        await connection.query(`ALTER TABLE \`users\` ADD COLUMN \`${col.name}\` ${col.type};`);
+        console.log(`   ✅ [users] Added column ${col.name}`);
+      } catch (e) {
+        if (e.code === 'ER_DUP_FIELDNAME') {
+          console.log(`   ℹ️ [users] Column ${col.name} already exists`);
+        } else {
+          console.warn(`   ⚠️ [users] Warning on ${col.name}:`, e.message);
+        }
+      }
+    }
+
     console.log('🎉 Production Database Migration Completed Safely (Zero Data Loss)!');
   } finally {
     await connection.end();

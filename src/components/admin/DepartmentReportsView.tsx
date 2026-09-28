@@ -36,7 +36,7 @@ import {
   MasterItem,
 } from '@/lib/types';
 import { sendTelegramUnbookedReminderAction } from '@/app/actions';
-import { formatDetailedAge, formatThaiDate } from '@/lib/item-utils';
+import { formatDetailedAge, formatThaiDate, getUserFullNameWithPrefix } from '@/lib/item-utils';
 import { AdminBookModal } from './AdminBookModal';
 
 interface DepartmentReportsViewProps {
@@ -291,7 +291,7 @@ export function DepartmentReportsView({
 
       return {
         'ลำดับ': idx + 1,
-        'ชื่อ-นามสกุล': `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+        'ชื่อ-นามสกุล': getUserFullNameWithPrefix(u),
         'เพศ': u.gender === 'FEMALE' ? 'หญิง' : 'ชาย',
         'แผนก/หน่วยงาน': u.department || '-',
         'ตำแหน่ง': u.position || '-',
@@ -710,7 +710,7 @@ export function DepartmentReportsView({
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-slate-900 dark:text-white text-xs">
-                                  {u.firstName} {u.lastName}
+                                  {getUserFullNameWithPrefix(u)}
                                 </span>
                                 {u.gender && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">

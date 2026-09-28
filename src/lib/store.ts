@@ -69,6 +69,20 @@ function calculateAge(dob: string, targetDate: Date = new Date()): number {
 export const store = {
   // --- Active User Session ---
   async getActiveUser(): Promise<User> {
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      const cookieUserId = cookieStore.get('active_user_id')?.value;
+      if (cookieUserId) {
+        const foundUser = await this.getUserById(cookieUserId);
+        if (foundUser && foundUser.isActive !== false) {
+          return foundUser;
+        }
+      }
+    } catch {
+      // Outside HTTP request context (e.g. CLI or background jobs)
+    }
+
     const usersList = await this.getUsers();
     const found = usersList.find((u) => u.id === activeUserIdStore);
     if (found) return found;
@@ -128,6 +142,7 @@ export const store = {
         employeeCode: r.employeeCode,
         username: r.username || undefined,
         nationalId: r.nationalId || undefined,
+        preName: r.preName || undefined,
         firstName: r.firstName,
         lastName: r.lastName,
         gender: detectGender(r.firstName, r.gender),
@@ -189,6 +204,7 @@ export const store = {
             await db
               .update(schema.users)
               .set({
+                preName: staff.preName,
                 firstName: staff.firstName,
                 lastName: staff.lastName,
                 department: staff.department,
@@ -200,7 +216,10 @@ export const store = {
                 telegramChatId: staff.telegramChatId,
                 password: staff.password,
                 startworkDate: staff.startworkDate ? new Date(staff.startworkDate) : undefined,
-                isActive: staff.isActive,
+                // กฎการซิงก์สถานะ Active/Inactive:
+                // 1. ถ้าใน HOSOffice ถูก Inactive (false) -> เปลี่ยนในตาราง users เป็น false ตาม
+                // 2. ถ้าในตาราง users ของแอปเป็น Inactive (false) อยู่แล้ว -> คงเป็น false ต่อไป ไม่โดน HOSOffice เปลี่ยนกลับเป็น Active
+                isActive: staff.isActive ? Boolean(existingUser.isActive) : false,
                 role: isAutoAdmin ? 'ADMIN' : existingUser.role, // Keep manual admin if already set
                 lastSyncedAt: new Date(),
               })
@@ -212,6 +231,7 @@ export const store = {
               employeeCode: staff.employeeCode,
               username: staff.username,
               nationalId: staff.nationalId,
+              preName: staff.preName,
               firstName: staff.firstName,
               lastName: staff.lastName,
               gender: staff.gender,

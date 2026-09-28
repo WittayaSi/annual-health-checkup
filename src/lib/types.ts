@@ -49,6 +49,7 @@ export interface User {
   employeeCode: string;
   username?: string;    // Username ที่ใช้ในระบบของ รพ. (เช่น somchai.j, siriporn.w)
   nationalId?: string; // เลขบัตรประชาชน (Masked)
+  preName?: string;    // คำนำหน้าชื่อ (จาก hr_prefix เช่น นาย, นางสาว, นาง, นพ., พญ.)
   firstName: string;
   lastName: string;
   gender?: Gender;

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { User, BookingWithDetails, Campaign, Organization, DailySlot, CheckupPackage, MasterItem } from '@/lib/types';
 import { sendTelegramUnbookedReminderAction } from '@/app/actions';
+import { getUserFullNameWithPrefix } from '@/lib/item-utils';
 import { AdminBookModal } from './AdminBookModal';
 import { CalendarPlus } from 'lucide-react';
 
@@ -150,7 +151,7 @@ export function UnbookedStaffView({
   const handleExecuteExportUnbooked = (format: 'xlsx' | 'csv') => {
     const dataRows = filteredUnbookedList.map((u, idx) => ({
       'ลำดับ': idx + 1,
-      'ชื่อ-นามสกุล': `${u.firstName} ${u.lastName}`.trim(),
+      'ชื่อ-นามสกุล': getUserFullNameWithPrefix(u),
       'เพศ': u.gender === 'FEMALE' ? 'หญิง' : 'ชาย',
       'สังกัด/องค์กร': u.organization || '-',
       'แผนก/หน่วยงาน': u.department || '-',
@@ -408,7 +409,7 @@ export function UnbookedStaffView({
                       </td>
 
                       <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white text-sm">
-                        {user.firstName} {user.lastName}
+                        {getUserFullNameWithPrefix(user)}
                       </td>
 
                       <td className="py-3 px-4">

@@ -1,0 +1,69 @@
+flowchart TD
+    Start([เริ่มต้นใช้งานระบบ]) --> LoginProcess[1. เข้าสู่ระบบด้วย เลขบัตรประชาชน / Username]
+
+    LoginProcess --> CheckRole{2. ตรวจสอบสิทธิ์ผู้ใช้<br/>User Role}
+    
+    %% ADMIN ROUTE
+    CheckRole -- "ADMIN / SUPER_STAFF" --> AdminDashboard[3A. หน้าบริหารจัดการผู้ดูแลระบบ Admin Dashboard]
+    
+    AdminDashboard --> AdminTask1[จัดการโครงสร้างองค์กร / นำเข้าไฟล์ Excel บุคลากร]
+    AdminDashboard --> AdminTask2[กำหนดโควตาและเปิดวันจองคิว Slot Quota]
+    AdminDashboard --> AdminTask3[ตั้งค่าสิทธิ์ Package ตามองค์กร Organization Entitlements]
+    AdminDashboard --> AdminTask4[ตั้งค่ากฎสิทธิ์เฉพาะแผนก Department Item Rules]
+    AdminDashboard --> AdminTask5[เช็กชื่อผู้รับบริการ / ดูรายงานสรุปและ Audit Logs]
+
+    %% STAFF ROUTE
+    CheckRole -- "STAFF (บุคลากรทั่วไป)" --> UserBookingPage[3B. หน้าหลักการลงทะเบียนจองคิว /booking]
+
+    UserBookingPage --> CheckExistingBooking{มีรายการจองคิว<br/>อยู่แล้วหรือไม่?}
+    
+    CheckExistingBooking -- "มีรายการแล้ว" --> DisplayCard[แสดงบัตรจองคิว Current Booking Card<br/>- สถานะ/วันนัด/คิวจอง<br/>- ปุ่มยกเลิกคิว / พิมพ์ใบแจ้ง]
+    
+    CheckExistingBooking -- "ยังไม่มีรายการ" --> SelectDate[4. เลือกวันรับบริการจากปฏิทิน Calendar Slot]
+
+    SelectDate --> CheckQuota{โควตาวันที่เลือก<br/>ว่างหรือไม่?}
+    CheckQuota -- "เต็ม (Quota 100%)" --> AlertFull[แสดงเตือนโควตาเต็ม ให้เลือกวันอื่น]
+    AlertFull --> SelectDate
+
+    CheckQuota -- "ว่าง (Quota Available)" --> OpenPackageSelector[5. เปิด Modal เลือกรายการตรวจ Health Package Selector]
+
+    OpenPackageSelector --> AgeCalc[6. คำนวณอายุบริบูรณ์ ณ วันที่ตรวจ & ตรวจสอบเพศ]
+    
+    AgeCalc --> MatchEntitlement[7. ตรวจสอบสิทธิ์สวัสดิการประจำองค์กร Organization Entitlement]
+    
+    MatchEntitlement --> EntitlementDecision{สถานะสิทธิ์องค์กร}
+    
+    EntitlementDecision -- "มีสิทธิ์ Package (FREE/FLAT)" --> DisplayPkgMode[แสดงการ์ดสิทธิ์ประจำองค์กร<br/>- ฟรี 100% FREE<br/>- เหมาจ่าย FLAT_RATE เช่น ฿150/฿500]
+    
+    EntitlementDecision -- "ไม่มีแพ็กเกจประจำองค์กร" --> DisplayCustomMode[แสดงโหมดเลือกรายการตรวจธรรมดา<br/>- แสดงรายการจาก Master Catalog 100%]
+
+    DisplayPkgMode --> EvaluateDeptRules[8. ประเมินกฎสิทธิ์เฉพาะแผนก Department Item Rules 4 ระดับ]
+    DisplayCustomMode --> EvaluateDeptRules
+
+    EvaluateDeptRules --> PregnancyCheck{บุคลากรหญิง<br/>ตั้งครรภ์หรือไม่?}
+    PregnancyCheck -- "ตั้งครรภ์" --> ExcludePregnancyItems[งดรายการข้อห้ามตั้งครรภ์อัตโนมัติ<br/>เช่น เอกซเรย์ปอด/รังสี]
+    PregnancyCheck -- "ไม่ได้ตั้งครรภ์ / เพศชาย" --> AllowAllItems[เปิดให้เลือกรายการตรวจตามสิทธิ์]
+
+    ExcludePregnancyItems --> CalculateTotal[9. คำนวณราคารวมสุทธิและสรุปรายการตรวจ]
+    AllowAllItems --> CalculateTotal
+
+    CalculateTotal --> ConfirmBooking[10. กดกดยืนยันการจองคิว Confirm Booking]
+
+    ConfirmBooking --> SaveDB[(11. บันทึกข้อมูลลงฐานข้อมูล MySQL<br/>- สร้าง Booking Record<br/>- บันทึก Selected Items<br/>- ตัดโควตาวันจองคิว Instant Quota)]
+
+    SaveDB --> TelegramSchedule[12. ทำการตั้งเวลาแจ้งเตือนล่วงหน้า 1 วัน<br/>ผ่านระบบ Telegram Bot Scheduler]
+
+    TelegramSchedule --> Finish([เสร็จสิ้นการจองคิว แสดงบัตรนัดหมาย])
+
+    %% Styling
+    classDef startEnd fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#fff;
+    classDef process fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
+    classDef decision fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff;
+    classDef admin fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef success fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+
+    class Start,Finish startEnd;
+    class LoginProcess,UserBookingPage,SelectDate,OpenPackageSelector,AgeCalc,MatchEntitlement,DisplayPkgMode,DisplayCustomMode,EvaluateDeptRules,ExcludePregnancyItems,AllowAllItems,CalculateTotal,ConfirmBooking,SaveDB,TelegramSchedule process;
+    class CheckRole,CheckExistingBooking,CheckQuota,AlertFull,EntitlementDecision,PregnancyCheck decision;
+    class AdminDashboard,AdminTask1,AdminTask2,AdminTask3,AdminTask4,AdminTask5 admin;
+    class DisplayCard success;

@@ -1,0 +1,51 @@
+flowchart TD
+    Input[ข้อมูลผู้ใช้: สังกัดองค์กร, แผนก, อายุ ณ วันตรวจ, เพศ] --> Step1[1. ค้นหา สิทธิ์แพ็กเกจประจำองค์กร Organization Entitlements]
+
+    Step1 --> CheckAgePkg{อายุของผู้ใช้}
+    CheckAgePkg -- "อายุน้อยกว่า 35 ปี (0-34 ปี)" --> MatchPkgA[จับคู่กับ PKG-A ชุดมาตรฐาน]
+    CheckAgePkg -- "อายุ 35 ปีขึ้นไป (35+ ปี)" --> MatchPkgB[จับคู่กับ PKG-B ชุดครอบคลุม]
+
+    MatchPkgA --> ModeCheck{ประเภทสิทธิ์องค์กร}
+    MatchPkgB --> ModeCheck
+
+    ModeCheck -- "FREE (ฟรีสวัสดิการ)" --> SetPkgPrice0[ราคาแพ็กเกจ = 0 บาท]
+    ModeCheck -- "FLAT (เหมาจ่ายองค์กร)" --> SetPkgFlat[ราคาแพ็กเกจ = ราคาเหมาจ่าย เช่น ฿150 / ฿500]
+    ModeCheck -- "FULL_PAY / ไม่มีแพ็กเกจ" --> SetPkgFull[ราคาแพ็กเกจ = ราคาปกติ / คิดตามรายการจริง]
+
+    SetPkgPrice0 --> ItemRules[2. ประเมินสิทธิ์รายการตรวจย่อย Department Item Rules]
+    SetPkgFlat --> ItemRules
+    SetPkgFull --> ItemRules
+
+    ItemRules --> PriorityCheck{ตรวจสอบลำดับความสำคัญ 4 ระดับ}
+    
+    PriorityCheck -- "ระดับ 1 (Priority 1)" --> P1[ตรงทั้ง องค์กรระบุ + แผนกระบุ]
+    PriorityCheck -- "ระดับ 2 (Priority 2)" --> P2[ตรง องค์กรระบุ + ทุกแผนก ALL]
+    PriorityCheck -- "ระดับ 3 (Priority 3)" --> P3[ตรง ทุกองค์กร ALL + แผนกระบุ]
+    PriorityCheck -- "ระดับ 4 (Priority 4)" --> P4[กฎทั่วไป ทุกองค์กร ALL + ทุกแผนก ALL]
+
+    P1 --> ApplyRuleType[คำนวณสิทธิ์ตาม Rule Type]
+    P2 --> ApplyRuleType
+    P3 --> ApplyRuleType
+    P4 --> ApplyRuleType
+
+    ApplyRuleType --> RuleTypes{ประเภทกฎสิทธิ์}
+    RuleTypes -- "MANDATORY_FREE" --> Rule1[บังคับตรวจประจำแผนก + ฟรี 0 บาท]
+    RuleTypes -- "OPTIONAL_FREE" --> Rule2[ตรวจตามสมัครใจ + ฟรี 0 บาท]
+    RuleTypes -- "SPECIAL_PRICE" --> Rule3[คิดราคาพิเศษเฉพาะแผนก]
+    RuleTypes -- "HIDDEN" --> Rule4[ซ่อนรายการตรวจไม่ให้แสดง]
+
+    Rule1 --> SummaryPrice[3. สรุปรวมราคาสุทธิ = ราคาแพ็กเกจฐาน + ราคารายการตรวจเพิ่มเติม]
+    Rule2 --> SummaryPrice
+    Rule3 --> SummaryPrice
+    Rule4 --> SummaryPrice
+
+    %% Styling
+    classDef input fill:#0284c7,stroke:#0369a1,color:#fff;
+    classDef logic fill:#475569,stroke:#334155,color:#fff;
+    classDef tier fill:#7c3aed,stroke:#6d28d9,color:#fff;
+    classDef result fill:#059669,stroke:#047857,color:#fff;
+
+    class Input input;
+    class Step1,CheckAgePkg,MatchPkgA,MatchPkgB,ModeCheck,ItemRules,ApplyRuleType,RuleTypes logic;
+    class PriorityCheck,P1,P2,P3,P4 tier;
+    class SetPkgPrice0,SetPkgFlat,SetPkgFull,Rule1,Rule2,Rule3,Rule4,SummaryPrice result;

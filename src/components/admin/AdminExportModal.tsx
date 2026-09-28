@@ -6,7 +6,7 @@ import { FileSpreadsheet, FileText, Download, X, CheckCircle2 } from 'lucide-rea
 import * as XLSX from 'xlsx';
 import { BookingWithDetails } from '@/lib/types';
 import { getBookingsAction } from '@/app/actions';
-import { calculateAge, formatDetailedAge } from '@/lib/item-utils';
+import { calculateAge, formatDetailedAge, getUserFullNameWithPrefix } from '@/lib/item-utils';
 
 interface AdminExportModalProps {
   isOpen: boolean;
@@ -75,7 +75,7 @@ export function AdminExportModal({
           'เลขคิว': b.queueNumber || '',
           'Hospital Username': b.user?.username || '',
           'เลขบัตรประชาชน': b.user?.nationalId || '',
-          'ชื่อ-นามสกุล': `${b.user?.firstName || ''} ${b.user?.lastName || ''}`.trim(),
+          'ชื่อ-นามสกุล': getUserFullNameWithPrefix(b.user),
           'เพศ': b.user?.gender === 'FEMALE' ? 'หญิง' : 'ชาย',
           'สถานะการตั้งครรภ์': pregnancyStatus,
           'อายุ ณ วันตรวจ (ปี เดือน วัน)': userAge,

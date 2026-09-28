@@ -256,5 +256,25 @@ export function formatThaiDate(
   return `${dayNum} ${monthName} ${thaiYear}`;
 }
 
+/**
+ * Format full name with Thai prefix (คำนำหน้าชื่อ เช่น นาย, นางสาว, นาง, นพ., พญ., etc.)
+ */
+export function getUserFullNameWithPrefix(user?: { preName?: string; firstName?: string; lastName?: string; title?: string } | null): string {
+  if (!user) return '-';
+  const firstName = (user.firstName || '').trim();
+  const lastName = (user.lastName || '').trim();
+  const preName = (user.preName || user.title || '').trim();
+
+  if (!firstName) return lastName || '-';
+
+  if (preName) {
+    const combinedFirst = firstName.startsWith(preName) ? firstName : `${preName}${firstName}`;
+    return `${combinedFirst} ${lastName}`.trim();
+  }
+
+  // หากไม่มี preName ในตาราง users ให้ใช้ ชื่อ-นามสกุล โดยไม่เติม 'นาย' หรือ 'นางสาว' อัตโนมัติ
+  return `${firstName} ${lastName}`.trim();
+}
+
 
 
