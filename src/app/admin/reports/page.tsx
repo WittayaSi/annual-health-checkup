@@ -16,8 +16,9 @@ import {
   Sparkles,
   ChevronRight,
   TrendingUp,
+  UserCheck,
 } from 'lucide-react';
-import { formatThaiDate } from '@/lib/item-utils';
+import { formatThaiDate, getUserFullNameWithPrefix } from '@/lib/item-utils';
 
 export default function AdminReportsHubPage() {
   const { bookings, slots, users, packages, masterItems, selectedCampaignId } = useAdminContext();
@@ -83,53 +84,113 @@ export default function AdminReportsHubPage() {
     XLSX.writeFile(workbook, `daily_lab_manifest_${selectedReportDate}.xlsx`);
   };
 
-  // Export Report 2: Financial Settlement Report to Excel
-  const handleExportFinancialSettlement = () => {
-    const deptFinancials = new Map<string, { total: number; freeCount: number; upgradeCount: number; sumPrice: number }>();
+  // Export Report 2: Financial Settlement Report to Excel (Summary, Detailed, or All)
+  const handleExportFinancialSettlement = (mode: 'summary' | 'detailed' | 'all' = 'all') => {
+    if (confirmedBookings.length === 0) {
+      alert('ไม่พบข้อมูลการจองสิทธิ์ในระบบ');
+      return;
+    }
 
-    confirmedBookings.forEach((b) => {
-      const dept = (b.user?.organization || b.user?.department || 'โรงพยาบาลท่าสองยาง').trim();
-      if (!deptFinancials.has(dept)) {
-        deptFinancials.set(dept, { total: 0, freeCount: 0, upgradeCount: 0, sumPrice: 0 });
-      }
-      const entry = deptFinancials.get(dept)!;
-      entry.total += 1;
-      if (b.totalPrice && b.totalPrice > 0) {
-        entry.upgradeCount += 1;
-        entry.sumPrice += b.totalPrice;
-      } else {
-        entry.freeCount += 1;
-      }
-    });
-
-    const rows: any[] = [];
-    let grandSum = 0;
-
-    deptFinancials.forEach((val, deptName) => {
-      grandSum += val.sumPrice;
-      rows.push({
-        'หน่วยงาน/สังกัด': deptName,
-        'จำนวนผู้ตรวจ (คน)': val.total,
-        'สิทธิ์ฟรีสวัสดิการ (คน)': val.freeCount,
-        'ชำระส่วนต่าง/ซื้อเพิ่ม (คน)': val.upgradeCount,
-        'มูลค่ารวมส่วนต่าง (บาท)': val.sumPrice,
-      });
-    });
-
-    rows.push({
-      'หน่วยงาน/สังกัด': '=== ยอดรวมสุทธิ ===',
-      'จำนวนผู้ตรวจ (คน)': confirmedBookings.length,
-      'สิทธิ์ฟรีสวัสดิการ (คน)': confirmedBookings.filter(b => !b.totalPrice || b.totalPrice === 0).length,
-      'ชำระส่วนต่าง/ซื้อเพิ่ม (คน)': confirmedBookings.filter(b => b.totalPrice && b.totalPrice > 0).length,
-      'มูลค่ารวมส่วนต่าง (บาท)': grandSum,
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!cols'] = [{ wch: 35 }, { wch: 18 }, { wch: 22 }, { wch: 25 }, { wch: 22 }];
-
+    const todayStr = new Date().toISOString().split('T')[0];
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'สรุปงบการเงินการตรวจสุขภาพ');
-    XLSX.writeFile(workbook, `financial_settlement_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    // 1. Summary Sheet (สรุปตามสังกัด/หน่วยงาน)
+    if (mode === 'summary' || mode === 'all') {
+      const deptFinancials = new Map<string, { total: number; freeCount: number; upgradeCount: number; sumPrice: number }>();
+
+      confirmedBookings.forEach((b) => {
+        const dept = (b.user?.organization || b.user?.department || 'โรงพยาบาลท่าสองยาง').trim();
+        if (!deptFinancials.has(dept)) {
+          deptFinancials.set(dept, { total: 0, freeCount: 0, upgradeCount: 0, sumPrice: 0 });
+        }
+        const entry = deptFinancials.get(dept)!;
+        entry.total += 1;
+        if (b.totalPrice && b.totalPrice > 0) {
+          entry.upgradeCount += 1;
+          entry.sumPrice += b.totalPrice;
+        } else {
+          entry.freeCount += 1;
+        }
+      });
+
+      const summaryRows: any[] = [];
+      let grandSum = 0;
+      let summaryIdx = 1;
+
+      deptFinancials.forEach((val, deptName) => {
+        grandSum += val.sumPrice;
+        summaryRows.push({
+          'ลำดับ': summaryIdx++,
+          'หน่วยงาน/สังกัด': deptName,
+          'จำนวนผู้ตรวจ (คน)': val.total,
+          'สิทธิ์ฟรีสวัสดิการ (คน)': val.freeCount,
+          'ชำระส่วนต่าง/ซื้อเพิ่ม (คน)': val.upgradeCount,
+          'มูลค่ารวมส่วนต่าง (บาท)': val.sumPrice,
+        });
+      });
+
+      summaryRows.push({
+        'ลำดับ': '',
+        'หน่วยงาน/สังกัด': '=== ยอดรวมสุทธิ ===',
+        'จำนวนผู้ตรวจ (คน)': confirmedBookings.length,
+        'สิทธิ์ฟรีสวัสดิการ (คน)': confirmedBookings.filter((b) => !b.totalPrice || b.totalPrice === 0).length,
+        'ชำระส่วนต่าง/ซื้อเพิ่ม (คน)': confirmedBookings.filter((b) => b.totalPrice && b.totalPrice > 0).length,
+        'มูลค่ารวมส่วนต่าง (บาท)': grandSum,
+      });
+
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryRows);
+      summaryWorksheet['!cols'] = [{ wch: 8 }, { wch: 35 }, { wch: 18 }, { wch: 22 }, { wch: 25 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'สรุปภาพรวมตามหน่วยงาน');
+    }
+
+    // 2. Detailed Sheet (รายละเอียดตั้งเบิกรายบุคคล)
+    if (mode === 'detailed' || mode === 'all') {
+      const detailedRows = confirmedBookings.map((b, idx) => {
+        const fullName = getUserFullNameWithPrefix(b.user);
+        const pkgName = b.package?.name || 'แพ็กเกจหลัก';
+        const addOnItems = b.items && b.items.length > 0
+          ? b.items.map((it: any) => it.name || it.itemName).join(', ')
+          : '-';
+        const isFree = !b.totalPrice || b.totalPrice === 0;
+
+        return {
+          'ลำดับ': idx + 1,
+          'รหัสพนักงาน': b.user?.employeeCode || '-',
+          'ชื่อ-นามสกุล': fullName,
+          'หน่วยงาน/สังกัด': b.user?.organization || 'โรงพยาบาลท่าสองยาง',
+          'แผนก/กลุ่มงาน': b.user?.department || '-',
+          'แพ็กเกจหลัก': pkgName,
+          'รายการอัปเกรด/ซื้อเพิ่ม': addOnItems,
+          'ประเภทสิทธิ์': isFree ? 'ฟรีสวัสดิการ 100%' : 'มีชำระส่วนต่าง',
+          'ยอดชำระส่วนต่าง (บาท)': b.totalPrice || 0,
+          'วันที่เข้าตรวจ': b.dailySlot?.date || '-',
+          'รอบเวลา': b.timeSlot ? `${b.timeSlot.startTime}-${b.timeSlot.endTime}` : '-',
+          'สถานะการจอง': b.status === 'CONFIRMED' ? 'ยืนยันการจองสิทธิ์แล้ว' : 'ยกเลิก',
+          'หมายเหตุ': b.notes || '',
+        };
+      });
+
+      const detailedWorksheet = XLSX.utils.json_to_sheet(detailedRows);
+      detailedWorksheet['!cols'] = [
+        { wch: 8 },  // ลำดับ
+        { wch: 16 }, // รหัสพนักงาน
+        { wch: 28 }, // ชื่อ-นามสกุล
+        { wch: 25 }, // หน่วยงาน
+        { wch: 22 }, // แผนก
+        { wch: 28 }, // แพ็กเกจหลัก
+        { wch: 35 }, // รายการอัปเกรด
+        { wch: 18 }, // ประเภทสิทธิ์
+        { wch: 20 }, // ยอดชำระส่วนต่าง
+        { wch: 15 }, // วันที่เข้าตรวจ
+        { wch: 14 }, // รอบเวลา
+        { wch: 14 }, // สถานะการตรวจ
+        { wch: 20 }, // หมายเหตุ
+      ];
+      XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'รายละเอียดรายบุคคล');
+    }
+
+    const fileNameSuffix = mode === 'summary' ? 'summary' : mode === 'detailed' ? 'individual' : 'full';
+    XLSX.writeFile(workbook, `financial_billing_report_${fileNameSuffix}_${todayStr}.xlsx`);
   };
 
   // Report 3: Pregnancy Safety Manifest
@@ -290,13 +351,31 @@ export default function AdminReportsHubPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleExportFinancialSettlement}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm cursor-pointer"
-          >
-            <Download className="h-4 w-4" />
-            <span>ส่งออกรายงานการเงิน & การตั้งเบิก (Excel)</span>
-          </button>
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={() => handleExportFinancialSettlement('summary')}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+              >
+                <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>ส่งออกแบบสรุป (Summary)</span>
+              </button>
+              <button
+                onClick={() => handleExportFinancialSettlement('detailed')}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+              >
+                <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>ส่งออกแบบรายคน (Detailed)</span>
+              </button>
+            </div>
+            <button
+              onClick={() => handleExportFinancialSettlement('all')}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>ส่งออกรวม (สรุป + รายคน ใน 1 ไฟล์)</span>
+            </button>
+          </div>
         </div>
 
         {/* REPORT 3: PREGNANCY SAFETY MANIFEST */}
