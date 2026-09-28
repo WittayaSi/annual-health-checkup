@@ -46,6 +46,17 @@ export function AdminSettingsView() {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isDeptRulesOpen, setIsDeptRulesOpen] = useState(false);
 
+  const uniqueOrganizations = useMemo(() => {
+    const set = new Set<string>();
+    organizations.forEach((o) => {
+      if (o.name && o.name.trim()) set.add(o.name.trim());
+    });
+    users.forEach((u) => {
+      if (u.organization && u.organization.trim()) set.add(u.organization.trim());
+    });
+    return Array.from(set).sort();
+  }, [organizations, users]);
+
   const uniqueDepartments = useMemo(() => {
     const set = new Set<string>();
     users.forEach((u) => {
@@ -390,6 +401,7 @@ export function AdminSettingsView() {
           onClose={() => setIsDeptRulesOpen(false)}
           masterItems={masterItems}
           departments={uniqueDepartments}
+          organizations={uniqueOrganizations}
           onSuccess={onRefresh}
         />
       )}
