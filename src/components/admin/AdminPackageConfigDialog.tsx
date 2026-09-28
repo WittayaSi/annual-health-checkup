@@ -62,6 +62,8 @@ export function AdminPackageConfigDialog({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  useModalLock(isOpen && mounted);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -315,33 +317,33 @@ export function AdminPackageConfigDialog({
       </button>
 
       {isOpen && mounted && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200 overflow-y-auto">
-          <div role="dialog" aria-modal="true" className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="token-modal-backdrop">
+          <div role="dialog" aria-modal="true" className="token-modal-card max-w-3xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 shrink-0">
+            <div className="token-modal-header">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                <div className="token-badge-icon bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
                   <Package className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <h3 className="token-modal-title">
                     จัดการโปรแกรมตรวจสุขภาพ
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="token-modal-subtitle">
                     กำหนดรายการตรวจสุขภาพในแต่ละโปรแกรม
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="token-modal-close-btn"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Content Body */}
-            <div className="p-5 overflow-y-auto flex-1 space-y-4 text-sm">
+            <div className="token-modal-body flex-1">
               {errorMsg && (
                 <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 px-4 py-3 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -359,16 +361,9 @@ export function AdminPackageConfigDialog({
               {viewMode === 'LIST' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      โปรแกรมตรวจทั้งหมด ({packages.length})
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      รายการโปรแกรมตรวจทั้งหมด ({packages.length})
                     </span>
-                    <button
-                      onClick={handleOpenCreate}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>สร้างโปรแกรมใหม่</span>
-                    </button>
                   </div>
 
                   <div className="space-y-2">
@@ -680,38 +675,63 @@ export function AdminPackageConfigDialog({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
-                    {viewMode === 'EDIT' ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        disabled={isLoading || showDeleteConfirm}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>ลบโปรแกรม</span>
-                      </button>
-                    ) : <div />}
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('LIST')}
-                        className="px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        ยกเลิก
-                      </button>
-                      <button
-                        type="button"
-                        onClick={viewMode === 'CREATE' ? handleCreatePackage : handleUpdatePackage}
-                        disabled={isLoading}
-                        className="px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50 transition-colors"
-                      >
-                        {isLoading ? 'กำลังบันทึก...' : 'บันทึก'}
-                      </button>
-                    </div>
-                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* Modal Footer Token */}
+            <div className="token-modal-footer">
+              {viewMode === 'LIST' ? (
+                <>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 mr-auto font-medium">
+                    โปรแกรมตรวจสุขภาพทั้งหมด {packages.length} รายการ
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenCreate}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>สร้างโปรแกรมใหม่</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {viewMode === 'EDIT' ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isLoading || showDeleteConfirm}
+                      className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/60 rounded-xl transition-colors cursor-pointer mr-auto disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>ลบโปรแกรมนี้</span>
+                    </button>
+                  ) : <div className="mr-auto" />}
+
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('LIST')}
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={viewMode === 'CREATE' ? handleCreatePackage : handleUpdatePackage}
+                    disabled={isLoading}
+                    className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 rounded-xl shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <span>{isLoading ? 'กำลังบันทึก...' : 'บันทึกโปรแกรม'}</span>
+                  </button>
+                </>
               )}
             </div>
 

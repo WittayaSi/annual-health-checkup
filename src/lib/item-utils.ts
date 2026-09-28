@@ -10,6 +10,11 @@ export function resolveItemPrice(name: string, price: number = 0): number {
   if (n.includes('ยูริก') || n.includes('uric') || n.includes('เกาต์')) return 65;
   if (n.includes('ekg') || n.includes('หัวใจ')) return 250;
   if (n.includes('เอกซเรย์') || n.includes('x-ray') || n.includes('chest') || n.includes('pa upright')) return 180;
+  if (n.includes('cbc') || n.includes('เม็ดเลือด')) return 90;
+  if (n.includes('fbs') || n.includes('น้ำตาลในเลือด') || n.includes('blood sugar')) return 50;
+  if (n.includes('bun') || n.includes('creatinine') || n.includes('ไต')) return 60;
+  if (n.includes('urine') || n.includes('ปัสสาวะ')) return 50;
+  if (n.includes('ร่างกาย') || n.includes('physical examination')) return 100;
 
   return 0;
 }
@@ -34,11 +39,15 @@ export function isInternalStaffUser(user?: { organization?: string; department?:
 
   if (!org && !dept) return true;
 
-  const internalKeywords = ['โรงพยาบาล', 'รพ.', 'สสอ.', 'สาธารณสุข', 'hos'];
-  const isOrgInternal = internalKeywords.some((k) => org.includes(k));
-  const isDeptInternal = internalKeywords.some((k) => dept.includes(k));
+  // ONLY Hospital Staff of โรงพยาบาลท่าสองยาง get default internal hospital welfare
+  const hospitalKeywords = ['โรงพยาบาลท่าสองยาง', 'รพ.ท่าสองยาง'];
+  const isOrgHospital = hospitalKeywords.some((k) => org.includes(k.toLowerCase()));
+  const isDeptHospital = hospitalKeywords.some((k) => dept.includes(k.toLowerCase()));
 
-  return isOrgInternal || isDeptInternal;
+  if (isOrgHospital || isDeptHospital) return true;
+  if (org === 'โรงพยาบาล' || org === 'รพ.') return true;
+
+  return false;
 }
 
 export interface DepartmentItemRuleResult {
@@ -57,37 +66,59 @@ export interface DepartmentItemRuleResult {
 export function getDepartmentItemRule(
   itemName: string,
   departmentStr: string = '',
+  organizationStr: string = '',
   dbRules?: DepartmentItemRule[]
 ): DepartmentItemRuleResult {
   const name = (itemName || '').toLowerCase().trim();
   const dept = (departmentStr || '').toLowerCase().trim();
+  const org = (organizationStr || '').toLowerCase().trim();
 
   // 1. Evaluate Dynamic DB Rules if available
-  // Priority: Specific department match > "ALL" wildcard match
+  // Priority 1: Exact Org + Exact Dept match
+  // Priority 2: Exact Org + "ALL" Dept match
+  // Priority 3: "ALL" Org + Exact Dept match
+  // Priority 4: "ALL" Org + "ALL" Dept match
   if (Array.isArray(dbRules) && dbRules.length > 0) {
-    let specificMatch: DepartmentItemRule | undefined;
-    let allMatch: DepartmentItemRule | undefined;
+    let exactOrgDeptMatch: DepartmentItemRule | undefined;
+    let exactOrgAllDeptMatch: DepartmentItemRule | undefined;
+    let allOrgDeptMatch: DepartmentItemRule | undefined;
+    let globalAllMatch: DepartmentItemRule | undefined;
 
     for (const r of dbRules) {
       const rItemName = (r.itemName || '').toLowerCase().trim();
       const rDeptName = (r.departmentName || '').toLowerCase().trim();
+      const rOrgName = (r.organizationName || 'โรงพยาบาลท่าสองยาง').toLowerCase().trim();
 
       const isItemMatch = rItemName === name || name.includes(rItemName) || rItemName.includes(name);
       if (!isItemMatch) continue;
 
-      // Check if this is a specific department match
-      if (rDeptName !== 'all' && dept && (dept === rDeptName || dept.includes(rDeptName) || rDeptName.includes(dept))) {
-        specificMatch = r;
-        break; // Specific match found — highest priority, stop searching
-      }
+      const isOrgWildcard = rOrgName === 'all' || rOrgName === 'ทั้งหมด';
+      const isDeptWildcard = rDeptName === 'all' || rDeptName === 'ทั้งหมด';
 
-      // Check if this is an "ALL" wildcard match (fallback)
-      if (rDeptName === 'all' && !allMatch) {
-        allMatch = r;
+      const isOrgMatch = isOrgWildcard || !org || (org && (org === rOrgName || org.includes(rOrgName) || rOrgName.includes(org)));
+      const isDeptMatch = isDeptWildcard || !dept || (dept && (dept === rDeptName || dept.includes(rDeptName) || rDeptName.includes(dept)));
+
+      if (!isOrgMatch || !isDeptMatch) continue;
+
+      const isExactOrg = !isOrgWildcard && org && (org === rOrgName || org.includes(rOrgName));
+      const isExactDept = !isDeptWildcard && dept && (dept === rDeptName || dept.includes(rDeptName));
+
+      if (isExactOrg && isExactDept) {
+        exactOrgDeptMatch = r;
+        break; // Highest priority
+      }
+      if (isExactOrg && isDeptWildcard && !exactOrgAllDeptMatch) {
+        exactOrgAllDeptMatch = r;
+      }
+      if (isOrgWildcard && isExactDept && !allOrgDeptMatch) {
+        allOrgDeptMatch = r;
+      }
+      if (isOrgWildcard && isDeptWildcard && !globalAllMatch) {
+        globalAllMatch = r;
       }
     }
 
-    const matchedRule = specificMatch || allMatch;
+    const matchedRule = exactOrgDeptMatch || exactOrgAllDeptMatch || allOrgDeptMatch || globalAllMatch;
 
     if (matchedRule) {
       if (matchedRule.ruleType === 'MANDATORY_FREE') {
@@ -127,7 +158,6 @@ export function getDepartmentItemRule(
   }
 
   // 2. No DB rule matched → return neutral defaults (no auto-select, no hide)
-  // All department-specific rules must be configured by Admin via "กติกาเฉพาะแผนก" UI
   return {
     isMandatory: false,
     isFree: false,

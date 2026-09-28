@@ -75,12 +75,22 @@ export function HealthPackageSelector({
   // Determine user organization name and find DB entitlements strictly
   const userOrgName = (user.organization || user.department || '').trim();
 
-  // Find DB entitlements for user's organization (fallback to internal staff match if org matches internal keywords)
+  // Find DB entitlements strictly for user's organization name
   const isInternalStaff = isInternalStaffUser(user);
   const matchingEntitlements = entitlements.filter((e) => {
     const eOrg = (e.organizationName || '').toLowerCase().trim();
     const uOrg = userOrgName.toLowerCase();
-    return eOrg === uOrg || (isInternalStaff && (eOrg.includes('โรงพยาบาล') || eOrg.includes('รพ.') || eOrg.includes('สสอ.')));
+    if (!eOrg || !uOrg) return false;
+
+    // 1. Exact match on organization name
+    if (eOrg === uOrg) return true;
+
+    // 2. Only for Hospital Staff (โรงพยาบาลท่าสองยาง), allow matching hospital default entitlement
+    if (isInternalStaff && (eOrg.includes('โรงพยาบาลท่าสองยาง') || eOrg.includes('รพ.ท่าสองยาง'))) {
+      return true;
+    }
+
+    return false;
   });
 
   const hasEntitlements = matchingEntitlements.length > 0;
@@ -93,29 +103,44 @@ export function HealthPackageSelector({
   const pkgB = packages.find((p) => p.code === 'PKG-B' || p.id === 'pkg-b') || packages[1] || packages[0];
   const pkgA = packages.find((p) => p.code === 'PKG-A' || p.id === 'pkg-a') || packages[0];
 
-  // Find DB entitlements for PKG-A and PKG-B strictly
-  const pkgAEntitlement = matchingEntitlements.find((e) => e.packageId === pkgA.id && e.isFree);
-  const pkgBEntitlement = matchingEntitlements.find((e) => e.packageId === pkgB.id && e.isFree);
+  // Find DB entitlement for a given package and user age
+  const getEntitlementForPackage = (pkg: CheckupPackage) => {
+    const pkgCodeUpper = (pkg.code || pkg.id || '').toUpperCase();
+    const isPkgA = pkgCodeUpper.includes('A');
+    const isPkgB = pkgCodeUpper.includes('B');
 
-  // Check if PKG-B has a valid free entitlement in DB for user's age
-  const isPkgBFree = !!(
-    pkgBEntitlement &&
-    (pkgBEntitlement.minAge == null || userAge >= pkgBEntitlement.minAge) &&
-    (pkgBEntitlement.maxAge == null || userAge <= pkgBEntitlement.maxAge)
-  );
+    return matchingEntitlements.find((e) => {
+      const ePkgCode = (e.packageCode || e.packageId || '').toUpperCase();
+      let isPkgMatch = (
+        (e.packageId && (e.packageId === pkg.id || e.packageId === pkg.code)) ||
+        (e.packageCode && (e.packageCode === pkg.code || e.packageCode === pkg.id))
+      );
 
-  // Check if PKG-A has a valid free entitlement in DB for user's age
-  const isPkgAFree = !!(
-    pkgAEntitlement &&
-    (pkgAEntitlement.minAge == null || userAge >= pkgAEntitlement.minAge) &&
-    (pkgAEntitlement.maxAge == null || userAge <= pkgAEntitlement.maxAge)
-  );
+      if (!isPkgMatch) {
+        if (isPkgA && (ePkgCode.includes('A') || ePkgCode.includes('1'))) isPkgMatch = true;
+        if (isPkgB && (ePkgCode.includes('B') || ePkgCode.includes('2'))) isPkgMatch = true;
+      }
+      if (!isPkgMatch) return false;
 
-  // Auto-select package based on DB entitlement
-  const activePkgId = selectedPackageId || (isPkgBFree ? pkgB.id : pkgA.id);
-  const activePkg = packages.find((p) => p.id === activePkgId) || pkgA;
+      const minOk = e.minAge == null || userAge >= e.minAge;
+      const maxOk = e.maxAge == null || userAge <= e.maxAge;
+      return minOk && maxOk;
+    });
+  };
+
+  const pkgAEntitlement = getEntitlementForPackage(pkgA);
+  const pkgBEntitlement = getEntitlementForPackage(pkgB);
+
+  const isPkgAFree = Boolean(pkgAEntitlement?.isFree);
+  const isPkgBFree = Boolean(pkgBEntitlement?.isFree);
+
+  // Auto-select package strictly based on user age (age < 35 -> Package A, age >= 35 -> Package B)
+  const defaultPkg = userAge >= 35 ? pkgB : pkgA;
+  const activePkgId = selectedPackageId || defaultPkg.id;
+  const activePkg = packages.find((p) => p.id === activePkgId) || defaultPkg;
   const isSelectedPkgB = activePkg.code === 'PKG-B' || activePkg.id === 'pkg-b';
   const isUpgradeMode = isSelectedPkgB && !isPkgBFree && isPkgAFree;
+  const activePkgEntitlement = getEntitlementForPackage(activePkg);
 
 
   // Helper to extract items directly from Admin-configured package data and attach master catalog metadata
@@ -157,7 +182,7 @@ export function HealthPackageSelector({
   };
 
   // Active package items
-  const activeItems = getPkgItems(activePkg);
+  const activeItems = hasEntitlements ? getPkgItems(activePkg) : [];
   const activeItemNamesSet = new Set(activeItems.map((i) => i.name.trim().toLowerCase()));
 
   // Selected items state for active package items
@@ -192,14 +217,14 @@ export function HealthPackageSelector({
     const inActivePkg = activeItemNamesSet.has(item.name.trim().toLowerCase());
     if (inActivePkg) return false;
     if (item.targetGender && item.targetGender !== 'ALL' && item.targetGender !== userGender) return false;
-    const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
+    const rule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbDepartmentRules);
     return !rule.isHidden;
   });
 
   // Auto-select mandatory department items for user (e.g. Stool Exam for Nutrition, Methamphetamine for Vehicles)
   useEffect(() => {
     extraAddOnItems.forEach((item) => {
-      const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
+      const rule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbDepartmentRules);
       if (rule.isMandatory && !selectedExtraItemNames.includes(item.name)) {
         setSelectedExtraItemNames((prev) => [...prev, item.name]);
       }
@@ -285,29 +310,31 @@ export function HealthPackageSelector({
   // Dynamic Price calculations based strictly on DB entitlements:
   let pkgBasePrice = 0;
 
-  if (isSelectedPkgB) {
-    if (isPkgBFree) {
-      pkgBasePrice = 0;
-    } else if (isPkgAFree) {
-      // Free base PKG-A entitlement → UPGRADE mode for PKG-B
-      pkgBasePrice = activeItems
-        .filter((item) => 
-          selectedItemNames.includes(item.name) && 
-          !isIncludedInPkgA(item.name) &&
-          !(isFemale && isPregnant && item.contraindicatedIfPregnant)
-        )
-        .reduce((sum, item) => sum + (item.price || 0), 0);
+  if (hasEntitlements) {
+    if (activePkgEntitlement) {
+      if (activePkgEntitlement.isFree) {
+        pkgBasePrice = 0;
+      } else if (activePkgEntitlement.flatPrice != null && activePkgEntitlement.flatPrice >= 0) {
+        pkgBasePrice = activePkgEntitlement.flatPrice;
+      } else {
+        pkgBasePrice = activePkg.price ?? 500;
+      }
     } else {
-      // Neither PKG-B nor PKG-A is free in DB → FULL PAY
-      pkgBasePrice = activePkg.price ?? 1200;
+      if (isSelectedPkgB && isPkgAFree) {
+        pkgBasePrice = activeItems
+          .filter((item) => 
+            selectedItemNames.includes(item.name) && 
+            !isIncludedInPkgA(item.name) &&
+            !(isFemale && isPregnant && item.contraindicatedIfPregnant)
+          )
+          .reduce((sum, item) => sum + (item.price || 0), 0);
+      } else {
+        pkgBasePrice = activePkg.price ?? 500;
+      }
     }
   } else {
-    // Selected PKG-A
-    if (isPkgAFree) {
-      pkgBasePrice = 0;
-    } else {
-      pkgBasePrice = activePkg.price ?? 500;
-    }
+    // No package entitlement configured for this organization → No base package price
+    pkgBasePrice = 0;
   }
 
   // Extra add-on items price calculation (considering department rule free status)
@@ -317,7 +344,7 @@ export function HealthPackageSelector({
       !(isFemale && isPregnant && item.contraindicatedIfPregnant)
     )
     .reduce((sum, item) => {
-      const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
+      const rule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbDepartmentRules);
       if (rule.isFree) return sum; // Free entitlement for department/staff
       if (rule.specialPrice !== null && rule.specialPrice !== undefined) return sum + rule.specialPrice;
       return sum + (item.price || 0);
@@ -328,7 +355,7 @@ export function HealthPackageSelector({
 
   // Notify parent on state change (filtering out contraindicated items if pregnant)
   useEffect(() => {
-    let selectedPkgItems = activeItems.filter((item) => selectedItemNames.includes(item.name));
+    let selectedPkgItems = hasEntitlements ? activeItems.filter((item) => selectedItemNames.includes(item.name)) : [];
     let selectedExtraItems = extraAddOnItems.filter((item) => selectedExtraItemNames.includes(item.name));
 
     if (isFemale && isPregnant) {
@@ -338,8 +365,8 @@ export function HealthPackageSelector({
 
     const combinedSelectedItems = [...selectedPkgItems, ...selectedExtraItems];
 
-    onSelectPackage(activePkgId, combinedSelectedItems, totalPrice, isFemale ? isPregnant : false);
-  }, [activePkgId, selectedItemNames, selectedExtraItemNames, totalPrice, isPregnant, isFemale]);
+    onSelectPackage(hasEntitlements ? activePkgId : 'custom', combinedSelectedItems, totalPrice, isFemale ? isPregnant : false);
+  }, [hasEntitlements, activePkgId, selectedItemNames, selectedExtraItemNames, totalPrice, isPregnant, isFemale]);
 
 
   return (
@@ -347,60 +374,79 @@ export function HealthPackageSelector({
       <div>
         <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
           <Stethoscope className="h-4 w-4 text-slate-500" />
-          <span>เลือกโปรแกรมตรวจสุขภาพ</span>
+          <span>{hasEntitlements ? 'เลือกโปรแกรมตรวจสุขภาพ' : 'รายการตรวจสุขภาพ (เลือกตามความประสงค์)'}</span>
         </h3>
         
         {/* Entitlement Banner & Auto-Assigned Package Card */}
         <div className="mt-2 text-xs">
-          {isPkgBFree ? (
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 border border-emerald-200 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 font-bold">
-                  {pkgB.code} (สิทธิ์ฟรีสวัสดิการ 100%)
-                </span>
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                  สิทธิ์เฉพาะอายุ 35 ปีขึ้นไป (อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)})
-                </span>
+          {hasEntitlements ? (
+            activePkgEntitlement?.isFree ? (
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 border border-emerald-200 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100 font-bold">
+                    {activePkg.code} (สิทธิ์ฟรีสวัสดิการ 100%)
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                    สังกัด: {userOrgName} | อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                  {activePkg.name}
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
+                  {activePkg.description} (สิทธิ์สวัสดิการตรวจฟรี 100%)
+                </p>
               </div>
-              <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
-                {pkgB.name}
-              </p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
-                {pkgB.description} (ระบบเลือกรวมรายการตรวจฟรีสวัสดิการทั้งหมดให้คุณเรียบร้อยแล้ว)
-              </p>
-            </div>
-          ) : isPkgAFree ? (
-            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 p-4 border border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-300 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-100 font-bold">
-                  {pkgA.code} (สิทธิ์ฟรีสวัสดิการ 100%)
-                </span>
-                <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                  สิทธิ์เฉพาะอายุน้อยกว่า 35 ปี (อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)})
-                </span>
+            ) : activePkgEntitlement?.flatPrice != null ? (
+              <div className="rounded-xl bg-purple-50 dark:bg-purple-950/40 p-4 border border-purple-200 dark:border-purple-900/50 text-purple-800 dark:text-purple-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-purple-200 dark:bg-purple-900 text-purple-900 dark:text-purple-100 font-bold">
+                    {activePkg.code} (เหมาจ่ายสวัสดิการ ฿{activePkgEntitlement.flatPrice.toLocaleString()} บาท)
+                  </span>
+                  <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300">
+                    สังกัด: {userOrgName} | อายุ ณ วันที่ตรวจ: {formatDetailedAge(user.dob, checkupTargetDate)}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-purple-950 dark:text-purple-100">
+                  {activePkg.name} — อัตราเหมาจ่าย ฿{activePkgEntitlement.flatPrice.toLocaleString()} บาท
+                </p>
+                <p className="text-xs text-purple-700 dark:text-purple-300/90 leading-relaxed">
+                  {activePkg.description} (คิดค่าบริการอัตราเหมาจ่ายสวัสดิการองค์กร รวมรายการตรวจในชุดมาตรฐานเรียบร้อยแล้ว)
+                </p>
               </div>
-              <p className="text-sm font-bold text-blue-950 dark:text-blue-100">
-                {pkgA.name}
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300/90 leading-relaxed">
-                {pkgA.description} (หากต้องการตรวจแล็บเพิ่มเติม สามารถเลือก Add-on รายการตรวจด้านล่างได้เลยครับ)
-              </p>
-            </div>
+            ) : (
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold">
+                    {activePkg.code} (ชำระอัตราปกติ ฿{(activePkg.price ?? 500).toLocaleString()})
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                    สังกัด: {userOrgName || 'ทั่วไป'}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                  {activePkg.name}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                  คิดค่าบริการตามรายการตรวจที่เลือกชำระจริง
+                </p>
+              </div>
+            )
           ) : (
-            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 space-y-2">
+            <div className="rounded-xl bg-slate-100 dark:bg-slate-800/80 p-4 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold">
-                  {activePkg.code} (ชำระตามอัตราปกติ)
+                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold">
+                  รายการตรวจธรรมดา (ไม่มีแพ็กเกจประจำองค์กร)
                 </span>
-                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
                   สังกัด: {userOrgName || 'ทั่วไป'}
                 </span>
               </div>
-              <p className="text-sm font-bold text-amber-950 dark:text-amber-100">
-                {activePkg.name}
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                เลือกรายการตรวจสุขภาพรายบุคคล (รายการตรวจธรรมดา)
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                คิดค่าบริการตามรายการตรวจที่เลือกชำระจริง
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                หน่วยงานของคุณไม่ได้ตั้งค่าแพ็กเกจประจำองค์กรไว้ ท่านสามารถเลือกรายการตรวจสุขภาพธรรมดาจาก Master Catalog ด้านล่างได้ตามความประสงค์
               </p>
             </div>
           )}
@@ -434,156 +480,149 @@ export function HealthPackageSelector({
 
       {/* Lab Checklist Section */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
-          <div>
-            <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
-              รายการตรวจในแพ็กเกจ ({activePkg.code})
-            </h4>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {isPkgBFree
-                ? 'รายการตรวจทั้งหมดรวมอยู่ในสิทธิ์สวัสดิการเรียบร้อยแล้ว'
-                : isUpgradeMode
-                ? `รายการที่มีอยู่ใน ${pkgA.code} จะฟรีทั้งหมด ส่วนรายการที่เกินมาจะคิดตามราคาปกติ`
-                : isPkgAFree
-                ? 'รายการตรวจชุดพื้นฐานอยู่ในสิทธิ์สวัสดิการฟรี'
-                : 'คิดค่าบริการตามรายการตรวจที่เลือกชำระเงินจริง'}
-            </p>
-          </div>
+        {hasEntitlements && (
+          <>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
+                  รายการตรวจในแพ็กเกจ ({activePkg.code})
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {activePkgEntitlement?.isFree
+                    ? 'รายการตรวจทั้งหมดรวมอยู่ในสิทธิ์สวัสดิการฟรีเรียบร้อยแล้ว'
+                    : activePkgEntitlement?.flatPrice != null
+                    ? `รายการตรวจทั้งหมดรวมอยู่ในอัตราเหมาจ่ายสวัสดิการองค์กร ฿${activePkgEntitlement.flatPrice.toLocaleString()} บาทเรียบร้อยแล้ว`
+                    : isUpgradeMode
+                    ? `รายการที่มีอยู่ใน ${pkgA.code} จะฟรีทั้งหมด ส่วนรายการที่เกินมาจะคิดตามราคาปกติ`
+                    : isPkgAFree
+                    ? 'รายการตรวจชุดพื้นฐานอยู่ในสิทธิ์สวัสดิการฟรี'
+                    : 'คิดค่าบริการตามรายการตรวจที่เลือกชำระเงินจริง'}
+                </p>
+              </div>
 
-          {isSelectedPkgB && isUpgradeMode && (
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={selectAllItems}
-                className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
-              >
-                เลือกทั้งหมด
-              </button>
-              <span className="text-slate-300 dark:border-slate-700">|</span>
-              <button
-                type="button"
-                onClick={deselectAllItems}
-                className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
-              >
-                ล้าง
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Checkbox Grid with Scrollable Container */}
-        <div className="grid gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
-          {activeItems.map((item, idx) => {
-            const isDisabledByPregnancy = isFemale && isPregnant && !!item.contraindicatedIfPregnant;
-            const isChecked = selectedItemNames.includes(item.name) && !isDisabledByPregnancy;
-            const canToggle = isSelectedPkgB && isUpgradeMode && !isDisabledByPregnancy;
-            const inPkgA = isIncludedInPkgA(item.name);
-
-            let priceBadge = null;
-            if (isDisabledByPregnancy) {
-              priceBadge = (
-                <span className="px-2 py-0.5 rounded bg-pink-100 dark:bg-pink-950/80 text-pink-700 dark:text-pink-300 font-bold text-[10px] border border-pink-300 dark:border-pink-800">
-                  🤰 งดตรวจ (ตั้งครรภ์)
-                </span>
-              );
-            } else if (isSelectedPkgB) {
-              if (isPkgBFree) {
-                priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-medium">ฟรี (สวัสดิการ)</span>;
-              } else if (isPkgAFree) {
-                if (inPkgA) {
-                  priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-medium">ฟรี (สิทธิ์ {pkgA.code})</span>;
-                } else {
-                  priceBadge = (
-                    <span className="text-amber-600 dark:text-amber-400 font-mono font-semibold">
-                      +{item.price > 0 ? `${item.price} ฿` : '0 ฿'}
-                    </span>
-                  );
-                }
-              } else {
-                priceBadge = <span className="text-slate-600 dark:text-slate-400 font-mono font-medium">฿{item.price || 0}</span>;
-              }
-            } else {
-              if (isPkgAFree) {
-                priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-medium">ฟรี (สวัสดิการ)</span>;
-              } else {
-                priceBadge = <span className="text-slate-600 dark:text-slate-400 font-mono font-medium">฿{item.price || 0}</span>;
-              }
-            }
-
-
-            return (
-              <label
-                key={idx}
-                onClick={() => {
-                  if (canToggle) {
-                    toggleItem(item.name);
-                  }
-                }}
-                className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors select-none ${
-                  isDisabledByPregnancy
-                    ? 'bg-pink-50/60 dark:bg-pink-950/30 border-pink-200 dark:border-pink-900/50 opacity-80 cursor-not-allowed'
-                    : !canToggle
-                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 cursor-default'
-                    : isChecked
-                    ? 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer'
-                    : 'bg-slate-100/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 cursor-pointer'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
-                      isDisabledByPregnancy
-                        ? 'bg-pink-200 dark:bg-pink-900 border-pink-400 text-pink-700 dark:text-pink-300'
-                        : isChecked
-                        ? 'bg-slate-800 dark:bg-slate-200 border-slate-800 dark:border-slate-200 text-white dark:text-slate-900'
-                        : 'border-slate-300 bg-white dark:bg-slate-900'
-                    }`}
+              {isSelectedPkgB && isUpgradeMode && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllItems}
+                    className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
                   >
-                    {isChecked && !isDisabledByPregnancy && <Check className="h-3 w-3" />}
-                    {isDisabledByPregnancy && <X className="h-3 w-3 text-pink-700 dark:text-pink-300" />}
-                  </div>
-                  <span
-                    className={`text-xs truncate ${
-                      isDisabledByPregnancy
-                        ? 'text-pink-800 dark:text-pink-300 font-medium line-through'
-                        : isChecked
-                        ? 'text-slate-800 dark:text-slate-200 font-medium'
-                        : 'text-slate-400 line-through'
-                    }`}
+                    เลือกทั้งหมด
+                  </button>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllItems}
+                    className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
                   >
-                    {item.name}
-                  </span>
+                    ล้างการเลือก
+                  </button>
                 </div>
+              )}
+            </div>
 
-                <span className="text-xs shrink-0 ml-2">
-                  {priceBadge}
-                </span>
-              </label>
-            );
-          })}
-        </div>
+            <div className="grid gap-2 sm:grid-cols-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+              {activeItems.map((item, idx) => {
+                const isChecked = selectedItemNames.includes(item.name);
+                const isBasePkgAItem = isIncludedInPkgA(item.name);
 
-        {/* Extra Add-on Items Section (รายการตรวจเพิ่มเติม นอกเหนือจากแพ็กเกจ) */}
+                let priceBadge = null;
+                if (activePkgEntitlement?.isFree) {
+                  priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">ฟรี (0 ฿)</span>;
+                } else if (activePkgEntitlement?.flatPrice != null) {
+                  priceBadge = <span className="text-purple-600 dark:text-purple-400 font-semibold font-mono">รวมในเหมาจ่าย</span>;
+                } else if (isUpgradeMode) {
+                  if (isBasePkgAItem) {
+                    priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">ฟรีสิทธิ์ {pkgA.code}</span>;
+                  } else {
+                    priceBadge = <span className="text-amber-600 dark:text-amber-400 font-semibold font-mono">+{item.price ?? 0} ฿</span>;
+                  }
+                } else if (isPkgAFree) {
+                  priceBadge = <span className="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">ฟรี (0 ฿)</span>;
+                } else {
+                  priceBadge = <span className="text-amber-600 dark:text-amber-400 font-semibold font-mono">{item.price ?? 0} ฿</span>;
+                }
+
+                const isDisabledByPregnancy = isFemale && isPregnant && item.contraindicatedIfPregnant;
+
+                return (
+                  <label
+                    key={idx}
+                    onClick={() => {
+                      if (!isDisabledByPregnancy && (!isPkgBFree || isUpgradeMode)) {
+                        toggleItem(item.name);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors select-none ${
+                      isDisabledByPregnancy
+                        ? 'bg-pink-50/60 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900/50 opacity-60 cursor-not-allowed'
+                        : isChecked
+                        ? 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 shadow-sm cursor-pointer'
+                        : 'bg-slate-100/60 dark:bg-slate-800/20 border-slate-200 dark:border-slate-800 opacity-60 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
+                          isDisabledByPregnancy
+                            ? 'border-pink-300 bg-pink-100 dark:bg-pink-900/50'
+                            : isChecked
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'border-slate-300 bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        {isChecked && !isDisabledByPregnancy && <Check className="h-3 w-3" />}
+                        {isDisabledByPregnancy && <X className="h-3 w-3 text-pink-700 dark:text-pink-300" />}
+                      </div>
+                      <span
+                        className={`text-xs truncate ${
+                          isDisabledByPregnancy
+                            ? 'text-pink-800 dark:text-pink-300 font-medium line-through'
+                            : isChecked
+                            ? 'text-slate-800 dark:text-slate-200 font-medium'
+                            : 'text-slate-400 line-through'
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                    </div>
+
+                    <span className="text-xs shrink-0 ml-2">
+                      {priceBadge}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Extra Add-on / Regular Test Items Section */}
         {extraAddOnItems.length > 0 && (
-          <div className="pt-3.5 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+          <div className={`${hasEntitlements ? 'pt-3.5 border-t border-slate-200 dark:border-slate-700' : ''} space-y-2.5`}>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
-                <h5 className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                  <Plus className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>รายการตรวจเพิ่มเติม นอกเหนือจาก{activePkg.code} (Add-on Extra Tests)</span>
+                <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>
+                    {hasEntitlements
+                      ? `รายการตรวจเพิ่มเติม นอกเหนือจาก ${activePkg.code} (Add-on Extra Tests)`
+                      : 'รายการตรวจสุขภาพธรรมดา (เลือกรายการตรวจตามความประสงค์)'}
+                  </span>
                 </h5>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  เลือกเพิ่มรายการตรวจย่อยนอกเหนือจากแพ็กเกจ (ไม่เลือกให้อัตโนมัติ — หากเลือกจะคิดค่าบริการเพิ่มตามราคาของรายการ)
+                  {hasEntitlements
+                    ? 'เลือกเพิ่มรายการตรวจย่อยนอกเหนือจากแพ็กเกจ (ไม่เลือกให้อัตโนมัติ — หากเลือกจะคิดค่าบริการเพิ่มตามราคาของรายการ)'
+                    : 'เลือกรายการตรวจสุขภาพรายบุคคลที่ต้องการ (คิดตามราคาปกติ หรือ สิทธิ์ฟรีตามแผนกถ้ามี)'}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={toggleSelectAllExtraItems}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
                 >
-                  <Check className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   <span>
                     {extraAddOnItems.every((i) => selectedExtraItemNames.includes(i.name))
                       ? 'ยกเลิกเลือกทั้งหมด'
@@ -591,18 +630,17 @@ export function HealthPackageSelector({
                   </span>
                 </button>
                 {selectedExtraItemNames.length > 0 && (
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
                     เลือกแล้ว {selectedExtraItemNames.length} รายการ (+{extraItemsPrice.toLocaleString()} ฿)
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-
+            <div className={`grid gap-2 sm:grid-cols-2 ${hasEntitlements ? 'max-h-56' : 'max-h-80'} overflow-y-auto pr-1 scrollbar-thin`}>
               {extraAddOnItems.map((item, idx) => {
                 const isChecked = selectedExtraItemNames.includes(item.name);
-                const rule = getDepartmentItemRule(item.name, user.department || user.organization, dbDepartmentRules);
+                const rule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbDepartmentRules);
                 const isMandatory = rule.isMandatory;
                 const isFree = rule.isFree;
 
@@ -618,7 +656,7 @@ export function HealthPackageSelector({
                       isMandatory
                         ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 cursor-not-allowed'
                         : isChecked
-                        ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 cursor-pointer'
+                        ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 cursor-pointer'
                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 cursor-pointer'
                     }`}
                   >
@@ -628,7 +666,7 @@ export function HealthPackageSelector({
                           isChecked
                             ? isMandatory
                               ? 'bg-emerald-600 text-white border-emerald-600'
-                              : 'bg-amber-600 text-white border-amber-600'
+                              : 'bg-blue-600 text-white border-blue-600'
                             : 'border-slate-300 bg-white dark:bg-slate-900'
                         }`}
                       >
@@ -654,7 +692,7 @@ export function HealthPackageSelector({
                       {isFree ? (
                         <span className="text-emerald-600 dark:text-emerald-400">ฟรี (0 ฿)</span>
                       ) : (
-                        <span className="text-amber-600 dark:text-amber-400">+{item.price > 0 ? `${item.price} ฿` : '0 ฿'}</span>
+                        <span className="text-blue-600 dark:text-blue-400">+{item.price > 0 ? `${item.price} ฿` : '0 ฿'}</span>
                       )}
                     </span>
                   </label>

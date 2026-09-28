@@ -504,6 +504,14 @@ export const store = {
       for (const u of usersData) {
         if (!u.firstName || !u.lastName || !u.employeeCode) continue;
 
+        const nationalIdVal = u.nationalId?.trim() || '1234567890123';
+        const usernameVal = u.username?.trim() || nationalIdVal || u.employeeCode.trim();
+        const rawPassword = u.password?.trim();
+        const passwordVal = rawPassword || (nationalIdVal.length >= 4 ? nationalIdVal.slice(-4) : '1234');
+        const genderVal = u.gender === 'FEMALE' ? 'FEMALE' : 'MALE';
+        const dobVal = u.dob ? String(u.dob).trim() : null;
+        const dobDateVal = dobVal ? new Date(dobVal) : null;
+
         const existing = await db
           .select()
           .from(schema.users)
@@ -516,10 +524,13 @@ export const store = {
             .set({
               firstName: u.firstName.trim(),
               lastName: u.lastName.trim(),
+              gender: genderVal,
+              dob: dobDateVal || (existing[0].dob ? new Date(existing[0].dob) : null),
+              password: passwordVal || existing[0].password,
               organization: organizationName,
               department: u.department?.trim() || existing[0].department || 'งานบริหารทั่วไป',
-              username: u.username?.trim() || existing[0].username,
-              nationalId: u.nationalId?.trim() || existing[0].nationalId,
+              username: usernameVal || existing[0].username,
+              nationalId: nationalIdVal || existing[0].nationalId,
               phone: u.phone?.trim() || existing[0].phone,
               position: u.position?.trim() || existing[0].position,
               updatedAt: new Date(),
@@ -529,10 +540,13 @@ export const store = {
           await db.insert(schema.users).values({
             id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             employeeCode: u.employeeCode.trim(),
-            username: u.username?.trim() || u.employeeCode.trim(),
-            nationalId: u.nationalId?.trim() || '1234567890123',
+            username: usernameVal,
+            nationalId: nationalIdVal,
             firstName: u.firstName.trim(),
             lastName: u.lastName.trim(),
+            gender: genderVal,
+            dob: dobDateVal,
+            password: passwordVal,
             organization: organizationName,
             department: u.department?.trim() || 'งานบริหารทั่วไป',
             position: u.position?.trim() || 'เจ้าหน้าที่',
@@ -1290,6 +1304,7 @@ export const store = {
       }
       return rows.map((r) => ({
         id: r.id,
+        organizationName: r.organizationName || 'โรงพยาบาลท่าสองยาง',
         departmentName: r.departmentName,
         riskGroup: r.riskGroup || undefined,
         itemId: r.itemId || undefined,
@@ -1309,6 +1324,7 @@ export const store = {
   },
 
   async createDepartmentRule(data: {
+    organizationName?: string;
     departmentName: string;
     riskGroup?: string;
     itemId?: string;
@@ -1325,6 +1341,7 @@ export const store = {
     if (db) {
       await db.insert(schema.departmentItemRules).values({
         id,
+        organizationName: data.organizationName || 'โรงพยาบาลท่าสองยาง',
         departmentName: data.departmentName,
         riskGroup: data.riskGroup || null,
         itemId: data.itemId || null,
@@ -1343,7 +1360,7 @@ export const store = {
     await this.logAudit(
       activeUserIdStore,
       'UPDATE_SLOT',
-      `กำหนดสิทธิ์แล็บเฉพาะแผนก: ${data.departmentName} -> ${data.itemName} (${data.ruleType})`
+      `กำหนดสิทธิ์แล็บเฉพาะองค์กร/แผนก: ${data.organizationName || 'โรงพยาบาลท่าสองยาง'} (${data.departmentName}) -> ${data.itemName} (${data.ruleType})`
     );
 
     const all = await this.getDepartmentRules();
@@ -1353,6 +1370,7 @@ export const store = {
   async updateDepartmentRule(
     ruleId: string,
     updates: Partial<{
+      organizationName: string;
       departmentName: string;
       riskGroup: string;
       itemId: string;
@@ -1378,7 +1396,7 @@ export const store = {
     await this.logAudit(
       activeUserIdStore,
       'UPDATE_SLOT',
-      `แก้ไขสิทธิ์แล็บเฉพาะแผนก ID: ${ruleId}`
+      `แก้ไขสิทธิ์แล็บเฉพาะองค์กร/แผนก ID: ${ruleId}`
     );
 
     const all = await this.getDepartmentRules();
@@ -1617,7 +1635,7 @@ export const store = {
 
         const items = itemsToPrice.map((item) => {
           const inPkg = pkgItemNames.has(item.name.trim().toLowerCase());
-          const deptRule = getDepartmentItemRule(item.name, user.department || user.organization, dbRules);
+          const deptRule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbRules);
           const isCovered = inPkg || deptRule.isFree;
           const chargedPrice = isCovered
             ? 0
@@ -1663,7 +1681,7 @@ export const store = {
       const items = itemsToPrice.map((item) => {
         const inBase = (item.id && baseItemIds.has(item.id)) ||
           baseItemNames.has(item.name.trim().toLowerCase());
-        const deptRule = getDepartmentItemRule(item.name, user.department || user.organization, dbRules);
+        const deptRule = getDepartmentItemRule(item.name, user.department || '', user.organization || '', dbRules);
         const isCovered = inBase || deptRule.isFree;
         const chargedPrice = isCovered
           ? 0
@@ -1910,7 +1928,7 @@ export const store = {
         const items = allBookingItems
           .filter((bi) => bi.bookingId === r.id)
           .map((bi) => {
-            const deptRule = getDepartmentItemRule(bi.itemName, user?.department || user?.organization, dbRules);
+            const deptRule = getDepartmentItemRule(bi.itemName, user?.department || '', user?.organization || '', dbRules);
             const isFreeByRule = deptRule.isFree;
             const chargedPrice = isFreeByRule ? 0 : (bi.chargedPrice || 0);
             const isCoveredByEntitlement = isFreeByRule || Boolean(bi.isCoveredByEntitlement);
@@ -1932,7 +1950,7 @@ export const store = {
           if (match && match[1]) {
             const rawNames = match[1].split(',').map((s) => s.trim()).filter((s) => s && s !== 'ทั้งหมด');
             rawNames.forEach((name, idx) => {
-              const deptRule = getDepartmentItemRule(name, user?.department || user?.organization, dbRules);
+              const deptRule = getDepartmentItemRule(name, user?.department || '', user?.organization || '', dbRules);
               items.push({
                 id: `parsed-${r.id}-${idx}`,
                 bookingId: r.id,

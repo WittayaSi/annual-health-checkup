@@ -57,6 +57,7 @@ async function migrate() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS \`department_item_rules\` (
         \`id\` varchar(100) NOT NULL,
+        \`organization_name\` varchar(255) DEFAULT 'โรงพยาบาลท่าสองยาง',
         \`department_name\` varchar(100) NOT NULL,
         \`risk_group\` varchar(100) NULL,
         \`item_id\` varchar(100) NULL,
@@ -70,11 +71,25 @@ async function migrate() {
         \`created_at\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
         \`updated_at\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (\`id\`),
-        KEY \`dept_idx\` (\`department_name\`),
+        KEY \`org_dept_idx\` (\`organization_name\`, \`department_name\`),
         KEY \`item_rule_idx\` (\`item_name\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
     console.log('   ✅ [department_item_rules] Table verified/created');
+
+    const deptRuleCols = [
+      { name: 'organization_name', type: 'varchar(255) DEFAULT "โรงพยาบาลท่าสองยาง"' },
+    ];
+    for (const col of deptRuleCols) {
+      try {
+        await connection.query(`ALTER TABLE \`department_item_rules\` ADD COLUMN \`${col.name}\` ${col.type};`);
+        console.log(`   ✅ [department_item_rules] Added column ${col.name}`);
+      } catch (e) {
+        if (e.code === 'ER_DUP_FIELDNAME') {
+          console.log(`   ℹ️ [department_item_rules] Column ${col.name} already exists`);
+        }
+      }
+    }
 
     console.log('🎉 Production Database Migration Completed Safely (Zero Data Loss)!');
   } finally {

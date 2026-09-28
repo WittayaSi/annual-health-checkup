@@ -26,6 +26,7 @@ interface AdminDepartmentRulesDialogProps {
   onClose: () => void;
   masterItems?: TestItem[];
   departments?: string[];
+  organizations?: string[];
   onSuccess?: () => void;
 }
 
@@ -34,6 +35,7 @@ export function AdminDepartmentRulesDialog({
   onClose,
   masterItems = [],
   departments = [],
+  organizations = [],
   onSuccess,
 }: AdminDepartmentRulesDialogProps) {
   const [mounted, setMounted] = useState(false);
@@ -43,6 +45,8 @@ export function AdminDepartmentRulesDialog({
   // Form State
   const [editingRule, setEditingRule] = useState<DepartmentItemRule | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [formOrganizationName, setFormOrganizationName] = useState('โรงพยาบาลท่าสองยาง');
+  const [isCustomOrg, setIsCustomOrg] = useState(false);
   const [formDepartmentName, setFormDepartmentName] = useState('');
   const [isCustomDept, setIsCustomDept] = useState(false);
   const [formItemName, setFormItemName] = useState('');
@@ -89,6 +93,7 @@ export function AdminDepartmentRulesDialog({
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return (
+      (r.organizationName || '').toLowerCase().includes(q) ||
       r.departmentName.toLowerCase().includes(q) ||
       r.itemName.toLowerCase().includes(q) ||
       (r.ruleMessage || '').toLowerCase().includes(q)
@@ -97,8 +102,11 @@ export function AdminDepartmentRulesDialog({
 
   const handleOpenAddForm = () => {
     setEditingRule(null);
+    const initialOrg = organizations[0] || 'โรงพยาบาลท่าสองยาง';
     const initialDept = departments[0] || 'กลุ่มงานโภชนศาสตร์';
     const initialItem = masterItems[0]?.name || 'Stool Examination';
+    setFormOrganizationName(initialOrg);
+    setIsCustomOrg(false);
     setFormDepartmentName(initialDept);
     setIsCustomDept(false);
     setFormItemName(initialItem);
@@ -111,6 +119,10 @@ export function AdminDepartmentRulesDialog({
 
   const handleOpenEditForm = (rule: DepartmentItemRule) => {
     setEditingRule(rule);
+    const ruleOrg = rule.organizationName || 'โรงพยาบาลท่าสองยาง';
+    setFormOrganizationName(ruleOrg);
+    const isOrgInList = organizations.includes(ruleOrg);
+    setIsCustomOrg(!isOrgInList && ruleOrg !== 'ALL');
     setFormDepartmentName(rule.departmentName);
     const isDeptInList = departments.includes(rule.departmentName);
     setIsCustomDept(!isDeptInList && rule.departmentName !== '');
@@ -124,8 +136,8 @@ export function AdminDepartmentRulesDialog({
 
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formDepartmentName.trim() || !formItemName.trim()) {
-      setErrorMsg('กรุณากรอกชื่อแผนกและชื่อรายการตรวจ');
+    if (!formOrganizationName.trim() || !formDepartmentName.trim() || !formItemName.trim()) {
+      setErrorMsg('กรุณากรอกสังกัดองค์กร, ชื่อแผนก และชื่อรายการตรวจ');
       return;
     }
 
@@ -136,6 +148,7 @@ export function AdminDepartmentRulesDialog({
 
     if (editingRule && editingRule.id) {
       const res = await updateDepartmentRuleAction(editingRule.id, {
+        organizationName: formOrganizationName.trim(),
         departmentName: formDepartmentName.trim(),
         itemName: formItemName.trim(),
         ruleType: formRuleType,
@@ -144,7 +157,7 @@ export function AdminDepartmentRulesDialog({
       });
 
       if (res.success) {
-        setSuccessMsg('บันทึกการแก้ไขกติกาแผนกเรียบร้อย');
+        setSuccessMsg('บันทึกการแก้ไขกติกาองค์กร/แผนกเรียบร้อย');
         setIsAddingNew(false);
         setEditingRule(null);
         await loadRules();
@@ -154,6 +167,7 @@ export function AdminDepartmentRulesDialog({
       }
     } else {
       const res = await createDepartmentRuleAction({
+        organizationName: formOrganizationName.trim(),
         departmentName: formDepartmentName.trim(),
         itemName: formItemName.trim(),
         ruleType: formRuleType,
@@ -162,7 +176,7 @@ export function AdminDepartmentRulesDialog({
       });
 
       if (res.success) {
-        setSuccessMsg('เพิ่มกติกาแผนกใหม่เรียบร้อย');
+        setSuccessMsg('เพิ่มกติกาองค์กร/แผนกใหม่เรียบร้อย');
         setIsAddingNew(false);
         await loadRules();
         if (onSuccess) onSuccess();
@@ -271,7 +285,58 @@ export function AdminDepartmentRulesDialog({
                 </button>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
+                    สังกัดองค์กรหลัก <span className="text-red-500">*</span>
+                  </label>
+                  {organizations.length > 0 && !isCustomOrg ? (
+                    <select
+                      value={formOrganizationName}
+                      onChange={(e) => {
+                        if (e.target.value === 'CUSTOM_INPUT') {
+                          setIsCustomOrg(true);
+                          setFormOrganizationName('');
+                        } else {
+                          setFormOrganizationName(e.target.value);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400/30"
+                    >
+                      <option value="ALL">ALL (ทุกองค์กร — ค่าเริ่มต้น)</option>
+                      {organizations.map((org) => (
+                        <option key={org} value={org}>
+                          {org}
+                        </option>
+                      ))}
+                      <option value="CUSTOM_INPUT">+ ระบุสังกัดองค์กรเอง...</option>
+                    </select>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น โรงพยาบาลท่าสองยาง, สสอ.ท่าสองยาง"
+                        value={formOrganizationName}
+                        onChange={(e) => setFormOrganizationName(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-400/30"
+                      />
+                      {organizations.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomOrg(false);
+                            setFormOrganizationName(organizations[0] || 'โรงพยาบาลท่าสองยาง');
+                          }}
+                          className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg whitespace-nowrap"
+                        >
+                          เลือกจากรายการ
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
                     ชื่อแผนก/คีย์เวิร์ดแผนก <span className="text-red-500">*</span>
@@ -424,7 +489,7 @@ export function AdminDepartmentRulesDialog({
             <table className="w-full min-w-[600px] text-left text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">แผนก/หน่วยงาน</th>
+                  <th className="px-4 py-2.5 font-medium">องค์กร & แผนก</th>
                   <th className="px-4 py-2.5 font-medium">รายการตรวจ</th>
                   <th className="px-4 py-2.5 font-medium text-center">เงื่อนไขกติกา</th>
                   <th className="px-4 py-2.5 font-medium">คำอธิบายสิทธิ์</th>
@@ -435,7 +500,7 @@ export function AdminDepartmentRulesDialog({
                 {filteredRules.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
-                      ยังไม่มีการกำหนดกติกาเฉพาะแผนกในระบบ (ระบบใช้กติกามาตรฐานเริ่มต้น)
+                      ยังไม่มีการกำหนดกติกาเฉพาะองค์กรและแผนกในระบบ
                     </td>
                   </tr>
                 ) : (
@@ -444,8 +509,15 @@ export function AdminDepartmentRulesDialog({
                       key={rule.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white">
-                        {rule.departmentName}
+                      <td className="px-4 py-2.5">
+                        <div className="space-y-0.5">
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                            🏢 {rule.organizationName || 'โรงพยาบาลท่าสองยาง'}
+                          </span>
+                          <div className="font-semibold text-slate-900 dark:text-white text-xs">
+                            📍 {rule.departmentName}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-800 dark:text-slate-200 font-medium">
                         {rule.itemName}

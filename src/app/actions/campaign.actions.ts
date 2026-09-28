@@ -220,6 +220,7 @@ export async function getDepartmentRulesAction(departmentName?: string) {
 }
 
 export async function createDepartmentRuleAction(data: {
+  organizationName?: string;
   departmentName: string;
   riskGroup?: string;
   itemId?: string;

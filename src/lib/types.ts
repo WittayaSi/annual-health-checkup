@@ -29,7 +29,8 @@ export type DepartmentRuleType = 'MANDATORY_FREE' | 'OPTIONAL_FREE' | 'SPECIAL_P
 
 export interface DepartmentItemRule {
   id: string;
-  departmentName: string;
+  organizationName?: string | null; // สังกัดองค์กรหลัก เช่น "โรงพยาบาลท่าสองยาง", "สสอ.ท่าสองยาง", หรือ "ALL"
+  departmentName: string;          // แผนก/หน่วยงานย่อย (หรือ "ALL")
   riskGroup?: string | null;
   itemId?: string | null;
   itemName: string;

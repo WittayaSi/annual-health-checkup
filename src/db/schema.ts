@@ -259,6 +259,7 @@ export const departmentItemRules = mysqlTable(
   'department_item_rules',
   {
     id: varchar('id', { length: 100 }).primaryKey(),
+    organizationName: varchar('organization_name', { length: 255 }).default('โรงพยาบาลท่าสองยาง'), // สังกัดองค์กรหลัก เช่น "โรงพยาบาลท่าสองยาง", "สสอ.ท่าสองยาง", หรือ "ALL"
     departmentName: varchar('department_name', { length: 100 }).notNull(), // ชื่อแผนก/คีย์เวิร์ด เช่น "กลุ่มงานโภชนศาสตร์", "งานยานพาหนะ", หรือ "ALL"
     riskGroup: varchar('risk_group', { length: 100 }),                     // กลุ่มความเสี่ยง (ถ้ามี) เช่น "สัมผัสสารเคมี", "สัมผัสรังสี"
     itemId: varchar('item_id', { length: 100 })                            // อ้างอิงรายการตรวจจากตาราง items
@@ -274,7 +275,7 @@ export const departmentItemRules = mysqlTable(
     updatedAt: datetime('updated_at').$defaultFn(() => new Date()).$onUpdateFn(() => new Date()).notNull(),
   },
   (table) => ({
-    deptIdx: index('dept_idx').on(table.departmentName),
+    orgDeptIdx: index('org_dept_idx').on(table.organizationName, table.departmentName),
     itemIdx: index('item_rule_idx').on(table.itemName),
   })
 );
