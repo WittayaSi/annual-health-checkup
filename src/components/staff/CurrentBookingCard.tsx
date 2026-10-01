@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Stethoscope,
   CreditCard,
+  Lock,
 } from 'lucide-react';
 import { BookingWithDetails } from '@/lib/types';
 import { cancelBookingAction } from '@/app/actions';
@@ -21,11 +22,13 @@ interface CurrentBookingCardProps {
   booking: BookingWithDetails;
   onCancelSuccess?: () => void;
   onRescheduleClick?: () => void;
+  isBookingOpen?: boolean;
 }
 
 export function CurrentBookingCard({
   booking,
   onCancelSuccess,
+  isBookingOpen,
 }: CurrentBookingCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
@@ -266,12 +269,19 @@ export function CurrentBookingCard({
 
         {/* Action Footer */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-2 pt-2 text-xs">
-          <button
-            onClick={() => setShowConfirmCancel(true)}
-            className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors border border-red-200 dark:border-red-900/40 sm:border-none self-end sm:self-auto"
-          >
-            ยกเลิกการจอง
-          </button>
+          {isBookingOpen !== false ? (
+            <button
+              onClick={() => setShowConfirmCancel(true)}
+              className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors border border-red-200 dark:border-red-900/40 sm:border-none self-end sm:self-auto cursor-pointer"
+            >
+              ยกเลิกการจอง
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs font-semibold border border-amber-200 dark:border-amber-900/50">
+              <Lock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>ขณะนี้ระบบปิดรับการยกเลิกหรือย้ายวันตรวจชั่วคราว</span>
+            </div>
+          )}
         </div>
 
 

@@ -184,7 +184,7 @@ export default async function BookingPage() {
             </span>
           </div>
 
-          <CurrentBookingCard booking={userBooking} />
+          <CurrentBookingCard booking={userBooking} isBookingOpen={isBookingOpen} />
 
           {/* Calendar for reference */}
           <div className="pt-6 border-t border-slate-200 dark:border-slate-800">

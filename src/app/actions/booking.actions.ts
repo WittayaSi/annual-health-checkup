@@ -93,6 +93,14 @@ export async function bookSlotAction(
 
 export async function cancelBookingAction(bookingId: string) {
   try {
+    const activeUser = await getActiveUserAction();
+    const isAdmin = activeUser?.role === 'ADMIN' || activeUser?.role === 'SUPER_STAFF';
+    const isBookingOpen = await getBookingOpenAction();
+
+    if (!isBookingOpen && !isAdmin) {
+      return { success: false, error: 'ขณะนี้ระบบปิดรับการจองคิวชั่วคราว ไม่สามารถยกเลิกการจองได้' };
+    }
+
     const bookings = await store.getBookings();
     const targetBooking = bookings.find((b) => b.id === bookingId);
 
